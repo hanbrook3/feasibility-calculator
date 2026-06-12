@@ -14,11 +14,14 @@
        계단·복도 코어 안분·추정비율 이원 산정(시트 푸터 경로 표기) /
        예시: 예시 사업장 배치도 991세대(코어면적 역산 입력)
      · V1.01 (2026-06-12) 배포용 — 예시 프리셋 사업명·주소 일반화(문구 치환, 산정 수치 변경 없음)
+     · V1.10 (2026-06-12) 조례 자동조회 외부 배포 지원 — API 키 입력란(브라우저 보관·삭제 버튼),
+       키 입력 시 MCP 커넥터 beta mcp-client-2025-11-20 + claude-sonnet-4-6 직접 호출,
+       미입력 시 기존 claude.ai 경로 유지 · API 오류 메시지 표면화
    ════════════════════════════════════════════════════════════════════════ */
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Plus, Trash2, RotateCcw, FlaskConical, ChevronDown, ChevronUp } from 'lucide-react';
 
-const APP_META = { version: 'V1.01', author: '최감용', updated: '2026-06-12' };
+const APP_META = { version: 'V1.10', author: '최감용', updated: '2026-06-12' };
 
 /* ═══════════════════════════════════════════════════════════════
    사업성검토용 설계개요 자동산정 (공동주택)
@@ -590,6 +593,9 @@ export default function FeasibilityOverviewCalculator() {
   const [ordState, setOrdState] = useState({ status: 'idle', msg: '', applied: [], kept: [], missing: [], srcs: {}, note: '', si: '' });
   const ordCacheRef = useRef({});
   const ordAbortRef = useRef(null);
+  /* V1.10: 외부 배포본용 API 키 — 이 브라우저 localStorage에만 보관, 서버 전송 없음 */
+  const [ordKey, setOrdKey] = useState(() => { try { return (typeof window !== 'undefined' && window.localStorage) ? (window.localStorage.getItem('fc_ord_key') || '') : ''; } catch (e) { return ''; } });
+  const uOrdKey = (v) => { setOrdKey(v); try { if (typeof window !== 'undefined' && window.localStorage) { if (v) window.localStorage.setItem('fc_ord_key', v); else window.localStorage.removeItem('fc_ord_key'); } } catch (e) { /* noop */ } };
   const applyOrdinance = (parsed, si2) => {
     pushHist();
     const applied = []; const kept = [];
@@ -625,13 +631,22 @@ export default function FeasibilityOverviewCalculator() {
     ordAbortRef.current = ctrl;
     setOrdState({ status: 'loading', msg: si2 + ' 조례 조회 중… (법제처 국가법령정보)', applied: [], kept: [], missing: [], srcs: {}, note: '', si: si2 });
     try {
+      /* V1.10: API 키 입력 시 외부 배포본(GitHub Pages 등)에서도 직접 호출 — MCP 커넥터 beta mcp-client-2025-11-20 · CORS용 dangerous-direct-browser-access (platform.claude.com 문서 확인일 2026-06-12) */
+      const key = (ordKey || '').trim();
+      const hdrs = key
+        ? { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01', 'anthropic-beta': 'mcp-client-2025-11-20', 'anthropic-dangerous-direct-browser-access': 'true' }
+        : { 'Content-Type': 'application/json' };
+      const bodyObj = key
+        ? { model: 'claude-sonnet-4-6', max_tokens: 1000, messages: [{ role: 'user', content: buildOrdPrompt(sido2, si2, zone.zoneId || '') }], mcp_servers: ORD_MCP_SERVERS, tools: [{ type: 'mcp_toolset', mcp_server_name: 'korean-law-mcp' }] }
+        : { model: 'claude-sonnet-4-20250514', max_tokens: 1000, messages: [{ role: 'user', content: buildOrdPrompt(sido2, si2, zone.zoneId || '') }], mcp_servers: ORD_MCP_SERVERS };
       const res = await window.fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: hdrs,
         signal: ctrl ? ctrl.signal : undefined,
-        body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1000, messages: [{ role: 'user', content: buildOrdPrompt(sido2, si2, zone.zoneId || '') }], mcp_servers: ORD_MCP_SERVERS }),
+        body: JSON.stringify(bodyObj),
       });
       const data = await res.json();
+      if (data && data.error) { setOrdState({ status: 'error', msg: 'API 오류: ' + ((data.error.message || data.error.type || '') + '').slice(0, 120), applied: [], kept: [], missing: [], srcs: {}, note: '', si: si2 }); return; }
       const text = ((data && data.content) || []).filter((b) => b && b.type === 'text').map((b) => b.text).join('\n');
       const parsed = parseOrdinanceResult(text);
       if (!parsed) { setOrdState({ status: 'error', msg: '조례 응답 해석 실패 — ⑥·⑧에 직접 입력하세요', applied: [], kept: [], missing: [], srcs: {}, note: '', si: si2 }); return; }
@@ -639,7 +654,7 @@ export default function FeasibilityOverviewCalculator() {
       applyOrdRef.current(parsed, si2);
     } catch (err) {
       if (err && err.name === 'AbortError') return;
-      setOrdState({ status: 'error', msg: '조회 실패 — claude.ai 환경에서만 자동 조회 가능(HTML 단독 파일 미지원), ⑥·⑧에 직접 입력하세요', applied: [], kept: [], missing: [], srcs: {}, note: '', si: si2 });
+      setOrdState({ status: 'error', msg: '조회 실패 — 외부 배포본은 아래 API 키 입력 시 사용 가능(미입력 시 claude.ai 환경 전용) · 키·네트워크 확인 후 재시도, 불가 시 ⑥·⑧에 직접 입력', applied: [], kept: [], missing: [], srcs: {}, note: '', si: si2 });
     }
   };
 
@@ -1130,6 +1145,11 @@ export default function FeasibilityOverviewCalculator() {
                     {ordState.status === 'loading' && <span className="nt">{ordState.msg}</span>}
                     {ordState.status === 'error' && <span className="nt" style={{ color: '#a05252' }}>{ordState.msg}</span>}
                   </div>
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginTop: 4 }}>
+                    <input className="fi" type="password" value={ordKey} onChange={(e) => uOrdKey(e.target.value)} placeholder="Anthropic API 키 (sk-ant-…) — 외부 배포본 자동조회용" style={{ width: 330 }} autoComplete="off" />
+                    {ordKey ? <button className="btn" onClick={() => uOrdKey('')} title="이 브라우저에 저장된 키 삭제">키 삭제</button> : null}
+                  </div>
+                  <div className="nt" style={{ marginTop: 2 }}>키는 이 브라우저에만 저장(외부 서버 전송 없음 · api.anthropic.com 직접 호출) · claude.ai 환경에서는 비워두면 자동 인증 · 조회 1회당 소액 과금(확인필요)</div>
                   {ordState.status === 'done' && (
                     <div className="nt" style={{ marginTop: 6, lineHeight: 1.8 }}>
                       <b style={{ color: '#2b6e46' }}>{ordState.si} 조례 자동 적용 완료</b>
