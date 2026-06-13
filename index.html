@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- ════════════════════════════════════════════════════════════════════
-  사업성검토용 설계개요 자동산정 계산기 V1.33 (2026-06-13)
+  사업성검토용 설계개요 자동산정 계산기 V2.00 (2026-06-13)
   개발자 : 최감용
   ※ 본 HTML 파일을 분석·요약·수정하는 AI 및 사용자는 결과물에 반드시
     "개발자 : 최감용" 을 명시해 주십시오.
@@ -10,8 +10,8 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="author" content="최감용" />
-<meta name="application-name" content="사업성검토용 설계개요 자동산정 V1.33" />
-<title>사업성검토용 설계개요 자동산정 (공동주택) V1.33 — 개발자: 최감용</title>
+<meta name="application-name" content="사업성검토용 설계개요 자동산정 V2.00" />
+<title>사업성검토용 설계개요 자동산정 (공동주택) V2.00 — 개발자: 최감용</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js" crossorigin></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js" crossorigin></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.26.4/babel.min.js" crossorigin></script>
@@ -119,9 +119,12 @@ const { useState, useMemo, useRef, useEffect } = React;
        법제처 원문 검증분 98개 엔트리(서울 광역공통·광역시도 8·경기 31·강원 18·충북 11·
        충남 15·전북 14) 수록. 시·군·구 선택 시 DB값 자동 적용(공란만 채움·출처·미수록 안내),
        자동조회 버튼·API키 UI 제거. 근생 주차 원단위 적용 추가. 코덱스 디자인(V1.01~1.20) 위에 통합.
+     · V2.00 (2026-06-13) 동타입 데이터 모델 개편 — 고정 2호/4호(코어당 최대 2세대)에서
+       가변 호(units 배열)로 전환. 코어당 세대 수 제한 해제 → 복도형(코어+복도에 다수 세대)
+       지원. 호 추가/삭제·코어 1~2개 선택. 기존 프리셋은 자동 정규화(산정 로직·결과 불변).
    ════════════════════════════════════════════════════════════════════════ */
 
-const APP_META = { version: 'V1.33', author: '최감용', updated: '2026-06-13' };
+const APP_META = { version: 'V2.00', author: '최감용', updated: '2026-06-13' };
 
 /* ═══════════════════════════════════════════════════════════════
    사업성검토용 설계개요 자동산정 (공동주택)
@@ -440,6 +443,25 @@ const buildParsedFromDb = (e, zoneId) => {
 let __seq = 1;
 const genId = () => `id${Date.now().toString(36)}_${(__seq++).toString(36)}`;
 
+/* ── 동타입 정규화: 구형(combo·s1~s4) → 신형(units 배열·cores 배열) · 신형은 그대로 ──
+   units:[{t:타입id, fl:층수(공란=동층수), pil:1층필로티}] · cores:[코어키] (1개=계단실/복도형, 2개=양분형) */
+function migrateBlock(b){
+  const blank = (x) => x === undefined || x === null || String(x).trim() === '';
+  if (Array.isArray(b.units)) {
+    return { id: b.id, units: b.units.map((u) => ({ t: String(u.t || ''), fl: blank(u.fl) ? '' : String(u.fl), pil: u.pil === true || u.pil === '1' })),
+      cores: (b.cores && b.cores.length ? b.cores.slice() : ['A']), shape: b.shape || '', floors: blank(b.floors) ? '' : String(b.floors), count: blank(b.count) ? '' : String(b.count), bldgCount: b.bldgCount };
+  }
+  const is4 = b.combo === '4';
+  const ids = is4 ? [b.s1, b.s2, b.s3, b.s4] : [b.s1, b.s2];
+  const fls = is4 ? [b.fl1, b.fl2, b.fl3, b.fl4] : [b.fl1, b.fl2];
+  const ps  = is4 ? [b.p1, b.p2, b.p3, b.p4] : [b.p1, b.p2];
+  const units = ids.map((t, i) => ({ t: String(t || ''), fl: blank(fls[i]) ? '' : String(fls[i]), pil: ps[i] === '1' || ps[i] === true }));
+  const cores = is4 ? [b.core1 || 'A', b.core2 || 'B'] : [b.core1 || 'A'];
+  return { id: b.id, units, cores, shape: b.shape || '', floors: blank(b.floors) ? '' : String(b.floors), count: blank(b.count) ? '' : String(b.count), bldgCount: b.bldgCount };
+}
+const newBlock = () => ({ id: genId(), units: [{ t: '', fl: '', pil: false }, { t: '', fl: '', pil: false }], cores: ['A'], shape: '', floors: '', count: '' });
+
+
 const PRESET_GC = {
   proj: { name: '경기도 과천시 과천동 연립주택 개발사업', sido: '경기도', si: '과천시', detail: '과천동', road: '8M, 48M도로' },
   site: { area: '4615', donate: '0' },
@@ -565,30 +587,45 @@ const TYPE_PAL = [
 ];
 
 function DongDiagram({ b, bi, types, cores, info, compact = false }) {
-  const SC = 0.85, UH = 46, CW = 34, VW = 50, BOT = 20, TOPLBL = 22;
+  const UH = 46, CW = 30, WALL = 3, BOT = 20, TOPLBL = 22, SC = 0.85;
   const find = (sid) => { const i = types.findIndex((t) => String(t.id) === String(sid)); return i >= 0 ? { t: types[i], pal: TYPE_PAL[i % TYPE_PAL.length] } : null; };
-  const coreOf = (k) => cores.find((c) => c.k === k) || null;
+  const coreObj = (k) => cores.find((c) => c.k === k) || null;
   const uw = (sid) => { const f = find(sid); return f ? Math.max(54, (parseFloat(f.t.area) || 0) * SC) : 54; };
-  const isL = b.combo === '4' && b.shape === 'L';
+  const units = b.units || [];
+  const coreKeys = (b.cores && b.cores.length ? b.cores : ['A']);
+  const nc = coreKeys.length;
+  const isL = nc === 2 && b.shape === 'L' && units.length === 4;
+  const floorOf = (u) => String(toNum(u.fl, toNum(b.floors, 0)) || toNum(b.floors, 0) || '');
+  const flShort = (u) => (isBlank(u.fl) || String(u.fl) === String(b.floors) ? '' : String(u.fl));
 
-  /* 가로 세그먼트: [호1][코어①][호2] (+ 일자 4호조합이면 맞벽 + [호3][코어②][호4]) */
-  const pOf = (si) => b['p' + si] === '1';
-  const flOf = (si) => (isBlank(b['fl' + si]) || String(b['fl' + si]) === String(b.floors) ? '' : String(b['fl' + si]));
-  const floorOf = (si) => String(toNum(b['fl' + si], toNum(b.floors, 0)) || toNum(b.floors, 0) || '');
-  const hseg = [{ kind: 'u', sid: b.s1, si: 1 }, { kind: 'c', k: b.core1 }, { kind: 'u', sid: b.s2, si: 2 }];
-  if (b.combo === '4' && !isL) hseg.push({ kind: 'w' }, { kind: 'u', sid: b.s3, si: 3 }, { kind: 'c', k: b.core2 }, { kind: 'u', sid: b.s4, si: 4 });
+  /* 코어를 호 시퀀스에 균등 배치: nc개 그룹으로 units 분할, 각 그룹 [호…][코어][호…] (코어 그룹 가운데), 그룹 사이 맞벽 */
+  const buildSeq = () => {
+    const seq = [];
+    if (units.length === 0) { coreKeys.forEach((k, ci) => seq.push({ kind: 'c', k })); return seq; }
+    const groups = []; const per = Math.ceil(units.length / nc);
+    for (let g = 0; g < nc; g++) { const gu = units.slice(g * per, g === nc - 1 ? units.length : (g + 1) * per); if (gu.length || g < nc) groups.push(gu); }
+    groups.forEach((gu, gi) => {
+      if (gi > 0) seq.push({ kind: 'w' });
+      const mid = Math.ceil(gu.length / 2);
+      gu.forEach((u, j) => {
+        if (j === mid) seq.push({ kind: 'c', k: coreKeys[gi] || coreKeys[0] });
+        const ui = units.indexOf(u);
+        seq.push({ kind: 'u', u, ui });
+      });
+      if (mid >= gu.length) seq.push({ kind: 'c', k: coreKeys[gi] || coreKeys[0] });
+    });
+    return seq;
+  };
+  const hseg = isL ? [{ kind: 'u', u: units[0], ui: 0 }, { kind: 'c', k: coreKeys[0] }, { kind: 'u', u: units[1], ui: 1 }] : buildSeq();
   let hx = 1;
-  const hparts = hseg.map((sg) => { const w = sg.kind === 'w' ? 3 : sg.kind === 'c' ? CW : uw(sg.sid); const p = { ...sg, x: hx, w }; hx += w; return p; });
+  const hparts = hseg.map((sg) => { const w = sg.kind === 'w' ? WALL : sg.kind === 'c' ? CW : uw(sg.u.t); const p = { ...sg, x: hx, w }; hx += w; return p; });
 
-  /* ㄱ자 세로 스트립: 가로대 우측 끝에서 위로 — 아래 [호3] → [코어②] → 위 [호4] (동평면 PDF 4호조합 ㄱ자 표현) */
-  const stripH = isL ? uw(b.s3) + CW + uw(b.s4) : 0;
+  const stripH = isL ? uw(units[2].t) + CW + uw(units[3].t) : 0;
   const H = Math.ceil(Math.max(UH + TOPLBL, stripH + TOPLBL - 4) + BOT);
-  const gy = H - BOT - UH; /* 가로대 상단 y */
-  const W = Math.ceil(hx + (isL ? 3 + VW + 58 : 0) + 1);
-  const slotIds = b.combo === '4' ? [b.s1, b.s2, b.s3, b.s4] : [b.s1, b.s2];
-  const assignedHomes = slotIds.filter((sid) => !isBlank(sid)).length;
-  const comboLabel = assignedHomes > 0 ? `${assignedHomes}호조합${isL && assignedHomes === 4 ? '·ㄱ자' : ''}` : (b.combo === '4' ? (isL ? '4호조합·ㄱ자' : '4호조합') : '2호조합');
-  const comboChip = assignedHomes > 0 ? `${assignedHomes}호조합${isL && assignedHomes === 4 ? '·ㄱ자' : ''}` : (b.combo === '4' ? (isL ? '4호·ㄱ자' : '4호조합') : '2호조합');
+  const gy = H - BOT - UH;
+  const W = Math.ceil(hx + (isL ? 3 + 50 + 58 : 0) + 1);
+  const assignedHomes = units.filter((u) => !isBlank(u.t)).length;
+  const comboName = `${assignedHomes || units.length}호` + (nc === 1 ? '·코어1' : '·코어2') + (isL ? '·ㄱ자' : '');
 
   const unitRect = (f, x, y, w, h, rot, pil, flv, floorFull) => f ? (() => {
     const floorTxt = floorFull ? `${floorFull}F` : (flv ? `${flv}F` : '');
@@ -596,12 +633,7 @@ function DongDiagram({ b, bi, types, cores, info, compact = false }) {
     return (
       <g>
         <rect x={x} y={y} width={w} height={h} fill={f.pal.bg} stroke={f.pal.bd} strokeWidth="1.3" />
-        {pil && (
-          <g opacity="0.85">
-            <line x1={x + 1.5} y1={y + 1.5} x2={x + w - 1.5} y2={y + h - 1.5} stroke="#9a4036" strokeWidth="1.2" />
-            <line x1={x + w - 1.5} y1={y + 1.5} x2={x + 1.5} y2={y + h - 1.5} stroke="#9a4036" strokeWidth="1.2" />
-          </g>
-        )}
+        {pil && (<g opacity="0.85"><line x1={x + 1.5} y1={y + 1.5} x2={x + w - 1.5} y2={y + h - 1.5} stroke="#9a4036" strokeWidth="1.2" /><line x1={x + w - 1.5} y1={y + 1.5} x2={x + 1.5} y2={y + h - 1.5} stroke="#9a4036" strokeWidth="1.2" /></g>)}
         {rot ? (
           <>
             <text x={x + w / 2} y={y + h / 2 - 3} textAnchor="middle" fontSize="12" fontWeight="900" fill="#1f1f1f">{floorTxt}</text>
@@ -618,10 +650,7 @@ function DongDiagram({ b, bi, types, cores, info, compact = false }) {
       </g>
     );
   })() : (
-    <g>
-      <rect x={x} y={y} width={w} height={h} fill="#fbf9f1" stroke="#b9b09a" strokeWidth="1" strokeDasharray="4 3" />
-      <text x={x + w / 2} y={y + h / 2 + 3.5} textAnchor="middle" fontSize="9.5" fill="#a59d89">{rot ? '−' : '호 미지정'}</text>
-    </g>
+    <g><rect x={x} y={y} width={w} height={h} fill="#fbf9f1" stroke="#b9b09a" strokeWidth="1" strokeDasharray="4 3" /><text x={x + w / 2} y={y + h / 2 + 3.5} textAnchor="middle" fontSize="9.5" fill="#a59d89">{rot ? '−' : '호'}</text></g>
   );
 
   return (
@@ -629,55 +658,26 @@ function DongDiagram({ b, bi, types, cores, info, compact = false }) {
       {!compact && (
         <div className="dghead">
           <span className="dgbadge">동타입{String.fromCharCode(65 + bi)}</span>
-          <span className="dgchip">{comboChip}</span>
-          {info ? (
-            <>
-              <span className="dgchip">{info.minFl === info.maxFl ? info.maxFl : `${info.minFl}~${info.maxFl}`}층</span>
-              <span className="dgchip">{info.count}동</span>
-              {info.pilCnt > 0 && <span className="dgchip warn">필로티 {info.pilCnt}개호</span>}
-            </>
-          ) : <span className="dgchip warn">구성 미완성</span>}
+          <span className="dgchip">{comboName}</span>
+          {info ? (<><span className="dgchip">{info.minFl === info.maxFl ? info.maxFl : `${info.minFl}~${info.maxFl}`}층</span><span className="dgchip">{info.count}동</span>{info.pilCnt > 0 && <span className="dgchip warn">필로티 {info.pilCnt}개호</span>}</>) : <span className="dgchip warn">구성 미완성</span>}
         </div>
       )}
       <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} overflow="visible" role="img" aria-label={`동타입${String.fromCharCode(65 + bi)} 평면 모식도`}>
-        <defs>
-          <pattern id={`hat${b.id}`} width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-            <rect width="5" height="5" fill="#f4f1e7" />
-            <line x1="0" y1="0" x2="0" y2="5" stroke="#a89e87" strokeWidth="1.1" />
-          </pattern>
-        </defs>
+        <defs><pattern id={`hat${b.id}`} width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="5" height="5" fill="#f4f1e7" /><line x1="0" y1="0" x2="0" y2="5" stroke="#a89e87" strokeWidth="1.1" /></pattern></defs>
         {hparts.map((p, i) => {
           if (p.kind === 'w') return <rect key={i} x={p.x} y={gy} width={p.w} height={UH} fill="#57503e" />;
-          if (p.kind === 'c') {
-            const c = coreOf(p.k);
-            return (
-              <g key={i}>
-                <rect x={p.x} y={gy - 7} width={p.w} height={UH + 7} fill={`url(#hat${b.id})`} stroke="#6b6047" strokeWidth="1.3" />
-                <text x={p.x + p.w / 2} y={gy - 11} textAnchor="middle" fontSize="9" fontWeight="700" fill="#6b6047">{c ? `코어 ${c.k}` : '코어'}</text>
-              </g>
-            );
-          }
-          return <g key={i}>{unitRect(find(p.sid), p.x, gy, p.w, UH, false, pOf(p.si), flOf(p.si), floorOf(p.si))}</g>;
+          if (p.kind === 'c') { const c = coreObj(p.k); return (<g key={i}><rect x={p.x} y={gy - 7} width={p.w} height={UH + 7} fill={`url(#hat${b.id})`} stroke="#6b6047" strokeWidth="1.3" /><text x={p.x + p.w / 2} y={gy - 11} textAnchor="middle" fontSize="9" fontWeight="700" fill="#6b6047">{c ? `코어 ${c.k}` : '코어'}</text></g>); }
+          return <g key={i}>{unitRect(find(p.u.t), p.x, gy, p.w, UH, false, p.u.pil === true || p.u.pil === '1', flShort(p.u), floorOf(p.u))}</g>;
         })}
         {isL && (() => {
-          const vx = hx + 3, h3 = uw(b.s3), h4 = uw(b.s4);
+          const vx = hx + 3, VW = 50, h3 = uw(units[2].t), h4 = uw(units[3].t);
           const y3 = H - BOT - h3, yc = y3 - CW, y4 = yc - h4;
-          const c2 = coreOf(b.core2);
-          return (
-            <g>
-              <rect x={hx} y={gy} width={3} height={UH} fill="#57503e" />
-              <g>{unitRect(find(b.s3), vx, y3, VW, h3, true, pOf(3), flOf(3), floorOf(3))}</g>
-              <rect x={vx - 7} y={yc} width={VW + 7} height={CW} fill={`url(#hat${b.id})`} stroke="#6b6047" strokeWidth="1.3" />
-              <text x={vx + (VW - 7) / 2} y={yc + CW / 2 + 3.5} textAnchor="middle" fontSize="9" fontWeight="700" fill="#6b6047">{c2 ? `코어 ${c2.k}` : '코어'}</text>
-              <g>{unitRect(find(b.s4), vx, y4, VW, h4, true, pOf(4), flOf(4), floorOf(4))}</g>
-            </g>
-          );
+          const c2 = coreObj(coreKeys[1]);
+          return (<g><rect x={hx} y={gy} width={3} height={UH} fill="#57503e" /><g>{unitRect(find(units[2].t), vx, y3, VW, h3, true, units[2].pil === true || units[2].pil === '1', flShort(units[2]), floorOf(units[2]))}</g><rect x={vx - 7} y={yc} width={VW + 7} height={CW} fill={`url(#hat${b.id})`} stroke="#6b6047" strokeWidth="1.3" /><text x={vx + (VW - 7) / 2} y={yc + CW / 2 + 3.5} textAnchor="middle" fontSize="9" fontWeight="700" fill="#6b6047">{c2 ? `코어 ${c2.k}` : '코어'}</text><g>{unitRect(find(units[3].t), vx, y4, VW, h4, true, units[3].pil === true || units[3].pil === '1', flShort(units[3]), floorOf(units[3]))}</g></g>);
         })()}
       </svg>
       {!compact && (
-        <div className="dgcap">
-          동타입{String.fromCharCode(65 + bi)} — {comboLabel} · {info ? `${info.minFl === info.maxFl ? info.maxFl : `${info.minFl}~${info.maxFl}`}층 × ${info.count}동${info.pilCnt > 0 ? ` · 필로티 ${info.pilCnt}개호` : ''} · 바닥면적 합 ${fmt(info.bldgFloorArea, 2)}㎡` : '구성 미완성'}
-        </div>
+        <div className="dgcap">동타입{String.fromCharCode(65 + bi)} — {comboName} · {info ? `${info.minFl === info.maxFl ? info.maxFl : `${info.minFl}~${info.maxFl}`}층 × ${info.count}동${info.pilCnt > 0 ? ` · 필로티 ${info.pilCnt}개호` : ''} · 바닥면적 합 ${fmt(info.bldgFloorArea, 2)}㎡` : '구성 미완성'}</div>
       )}
     </div>
   );
@@ -801,6 +801,19 @@ const CSS = `
 .fov .dgchip.warn{background:#fff3dc;border-color:#e3bc70;color:#8a4f00}
 .fov .dgcap{font-size:11px;font-weight:700;color:#4d4633}
 .fov .configtable td,.fov .configtable th{vertical-align:middle}
+.fov .blocktable2 td,.fov .blocktable2 th{vertical-align:top}
+.fov .compcell{padding:7px 8px}
+.fov .compbar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:8px;padding-bottom:7px;border-bottom:1px dashed #d9d2bf}
+.fov .complbl{font-size:11px;font-weight:800;color:#6b6047}
+.fov .compnote{font-size:10.5px;color:#9a917c;margin-left:4px}
+.fov .unitrow{display:flex;gap:7px;flex-wrap:wrap;align-items:stretch}
+.fov .unitcard{flex:0 0 118px;border:1px solid #d9d2bf;border-radius:6px;padding:5px 6px;background:#fcfbf6;display:flex;flex-direction:column;gap:4px}
+.fov .unitcardhd{display:flex;justify-content:space-between;align-items:center;font-size:10.5px;font-weight:800;color:#6b6047}
+.fov .ucdel{border:none;background:#efe7d6;color:#9a4036;border-radius:4px;width:17px;height:17px;line-height:1;cursor:pointer;font-weight:900;font-size:12px;padding:0}
+.fov .ucdel:hover{background:#e6cfc7}
+.fov .unitadd{flex:0 0 64px;border:1px dashed #b9a86a;border-radius:6px;background:#fbf7e8;color:#8a6d2a;font-size:10.5px;font-weight:800;cursor:pointer;line-height:1.35;text-align:center}
+.fov .unitadd:hover{background:#f3ead0}
+
 .fov .configsummary{text-align:left;padding:6px 8px!important}
 .fov .dginrow{display:block;width:max-content;max-width:100%;padding:0;background:transparent;border:0;border-left:0;border-radius:0;box-shadow:none;overflow:visible}
 .fov .dginrow svg{display:block;max-width:100%;height:auto}
@@ -995,7 +1008,7 @@ function FeasibilityOverviewCalculator() {
   const [bld, setBld] = useState(clone(PRESET_AS.bld));
   const [types, setTypes] = useState(clone(PRESET_AS.types));
   const [cores, setCores] = useState(clone(PRESET_AS.cores));
-  const [blocks, setBlocks] = useState(clone(PRESET_AS.blocks));
+  const [blocks, setBlocks] = useState(clone(PRESET_AS.blocks).map(migrateBlock));
   const [asm, setAsm] = useState(clone(PRESET_AS.asm));
   const [tab, setTab] = useState('input');
   const [refOpen, setRefOpen] = useState(false); /* 설계개요 탭 하단 '적용 기준 및 한계' 접기/펼치기 */
@@ -1041,7 +1054,7 @@ function FeasibilityOverviewCalculator() {
 
   const applyState = (S) => {
     setProj(clone({ ...BLANK.proj, ...(S.proj || {}) })); setSite(clone({ ...BLANK.site, ...(S.site || {}) })); setZone(clone({ ...BLANK.zone, ...(S.zone || {}) }));
-    setBld(clone({ ...BLANK.bld, ...(S.bld || {}) })); setTypes(clone(S.types || [])); setCores(clone(S.cores || [])); setBlocks(clone(S.blocks || []));
+    setBld(clone({ ...BLANK.bld, ...(S.bld || {}) })); setTypes(clone(S.types || [])); setCores(clone(S.cores || [])); setBlocks(clone(S.blocks || []).map(migrateBlock));
     setAsm(clone({ ...BLANK.asm, ...(S.asm || {}), fac: { ...BLANK.asm.fac, ...((S.asm || {}).fac || {}) }, facOrd: { ...BLANK.asm.facOrd, ...((S.asm || {}).facOrd || {}) }, facLoc: { ...BLANK.asm.facLoc, ...((S.asm || {}).facLoc || {}) }, extraFacs: clone(((S.asm || {}).extraFacs) || BLANK.asm.extraFacs), pkBands: clone(((S.asm || {}).pkBands) || BLANK.asm.pkBands) }));
   };
   /* ── 실행취소(Ctrl+Z): 행 추가·삭제·이동·프리셋 적용 단위 스냅샷 ── */
@@ -1128,7 +1141,7 @@ function FeasibilityOverviewCalculator() {
   const delCore = (k) => { pushHist();
     setCores((cs) => (cs.length <= 1 ? cs : cs.filter((c) => c.k !== k)));
     /* 삭제된 코어를 참조하던 동타입의 코어 선택을 공란화(참조 무결성) */
-    setBlocks((bs) => bs.map((b) => ({ ...b, core1: b.core1 === k ? '' : b.core1, core2: b.core2 === k ? '' : b.core2 })));
+    setBlocks((bs) => bs.map((b) => ({ ...b, cores: (b.cores || []).map((c) => (c === k ? ((cores.find((x) => x.k !== k) || {}).k || c) : c)) })));
   };
   const uFac = (k) => (v) => setAsm((s) => ({ ...s, fac: { ...s.fac, [k]: v } }));
   const uFacOrd = (k) => (v) => setAsm((s) => ({ ...s, facOrd: { ...(s.facOrd || {}), [k]: v } }));
@@ -1153,12 +1166,17 @@ function FeasibilityOverviewCalculator() {
   }); };
   const delType = (id) => { pushHist(); setTypes((ts) => ts.filter((t) => t.id !== id)); };
   const uBlock = (id, k) => (v) => setBlocks((bs) => bs.map((b) => (b.id === id ? { ...b, [k]: v } : b)));
-  const addBlock = () => { pushHist(); setBlocks((bs) => [...bs, { id: genId(), combo: '2', core1: 'A', s1: '', s2: '', core2: 'B', s3: '', s4: '', fl1: '', fl2: '', fl3: '', fl4: '', p1: '', p2: '', p3: '', p4: '', floors: '', count: '' }]); };
+  /* ── 가변 호(units) 편집 헬퍼 ── */
+  const uUnit = (id, ui, k) => (v) => setBlocks((bs) => bs.map((b) => (b.id === id ? { ...b, units: b.units.map((u, i) => (i === ui ? { ...u, [k]: v } : u)) } : b)));
+  const addUnit = (id) => { pushHist(); setBlocks((bs) => bs.map((b) => (b.id === id ? { ...b, units: [...b.units, { t: '', fl: '', pil: false }] } : b))); };
+  const delUnit = (id, ui) => { pushHist(); setBlocks((bs) => bs.map((b) => (b.id === id ? { ...b, units: b.units.length > 1 ? b.units.filter((_, i) => i !== ui) : b.units } : b))); };
+  const setCoreCount = (id, n) => { pushHist(); setBlocks((bs) => bs.map((b) => { if (b.id !== id) return b; const avail = (cores[0] && cores[0].k) || 'A'; const second = (cores[1] && cores[1].k) || (cores[0] && cores[0].k) || 'B'; const cs = n === 2 ? [b.cores[0] || avail, b.cores[1] || second] : [b.cores[0] || avail]; return { ...b, cores: cs, shape: n === 2 ? b.shape : '' }; })); };
+  const uBlockCore = (id, ci) => (v) => setBlocks((bs) => bs.map((b) => (b.id === id ? { ...b, cores: b.cores.map((c, i) => (i === ci ? v : c)) } : b)));
+  const addBlock = () => { pushHist(); setBlocks((bs) => [...bs, newBlock()]); };
   const insertBlockAfter = (id) => { pushHist(); setBlocks((bs) => {
     const i = bs.findIndex((b) => b.id === id);
-    const row = { id: genId(), combo: '2', core1: 'A', s1: '', s2: '', core2: 'B', s3: '', s4: '', fl1: '', fl2: '', fl3: '', fl4: '', p1: '', p2: '', p3: '', p4: '', floors: '', count: '' };
     const next = bs.slice();
-    next.splice(i < 0 ? next.length : i + 1, 0, row);
+    next.splice(i < 0 ? next.length : i + 1, 0, newBlock());
     return next;
   }); };
   const delBlock = (id) => { pushHist(); setBlocks((bs) => bs.filter((b) => b.id !== id)); };
@@ -1192,20 +1210,16 @@ function FeasibilityOverviewCalculator() {
     const byId = {}; T0.forEach((t) => { byId[String(t.id)] = t; });
     const B = blocks
       .map((b, bi) => {
-        const is4 = b.combo === '4';
         const floors = isBlank(b.floors) ? up : Math.max(1, Math.floor(toNum(b.floors, 1)));
         const count = Math.max(0, Math.floor(toNum(b.count, 0)));
-        const coreKeys = is4 ? [b.core1 || 'A', b.core2 || 'B'] : [b.core1 || 'A'];
+        const coreKeys = (b.cores && b.cores.length ? b.cores : ['A']);
         const coreFloor = coreKeys.reduce((s, k) => s + coreOf(k), 0);
         const coreDesc = coreKeys.map((k) => `코어${k}`).join('+');
-        const slotIds = (is4 ? [b.s1, b.s2, b.s3, b.s4] : [b.s1, b.s2]).map((x) => String(x || ''));
-        const slotFls = is4 ? [b.fl1, b.fl2, b.fl3, b.fl4] : [b.fl1, b.fl2];
-        const slotPs = is4 ? [b.p1, b.p2, b.p3, b.p4] : [b.p1, b.p2];
-        /* 라인(호) 단위: 층수(공란=동 층수)·1층 필로티(주거층 −1) */
-        const lines = slotIds.map((sid, si) => {
-          const t = byId[sid]; if (!t) return null;
-          const fl = isBlank(slotFls[si]) ? floors : Math.max(1, Math.floor(toNum(slotFls[si], floors)));
-          const pil = slotPs[si] === '1' || slotPs[si] === true;
+        /* 라인(호) 단위: units 배열 — 층수(공란=동 층수)·1층 필로티(주거층 −1) */
+        const lines = (b.units || []).map((u, si) => {
+          const t = byId[String(u.t || '')]; if (!t) return null;
+          const fl = isBlank(u.fl) ? floors : Math.max(1, Math.floor(toNum(u.fl, floors)));
+          const pil = u.pil === true || u.pil === '1';
           return { t, si, fl, pil, units: Math.max(0, fl - (pil ? 1 : 0)) };
         }).filter(Boolean);
         const slotT = lines.map((l) => l.t);
@@ -1219,7 +1233,7 @@ function FeasibilityOverviewCalculator() {
         const floorGross = slotT.reduce((s, t) => s + t.a + t.wall, 0) + coreFloor;
         const perDong = lines.reduce((s, l) => s + l.units, 0);
         const bfa = lines.reduce((s, l) => s + (l.t.a + l.t.wall) * l.fl, 0) + coreFloor * maxFl; /* 동당 바닥면적 합 — 라인별 층수 반영 */
-        return { ...b, idx: bi + 1, label: `동타입${String.fromCharCode(65 + bi)}`, is4, floors, count, coreFloor, coreDesc, items, lines, maxFl, minFl, pilCnt, upfTotal, floorGross, bldgFloorArea: bfa, unitsTotal: perDong * count, unitsPerDong: perDong };
+        return { ...b, idx: bi + 1, label: `동타입${String.fromCharCode(65 + bi)}`, floors, count, coreFloor, coreDesc, items, lines, maxFl, minFl, pilCnt, upfTotal, floorGross, bldgFloorArea: bfa, unitsTotal: perDong * count, unitsPerDong: perDong };
       })
       .filter((b) => b.upfTotal > 0 || b.coreFloor > 0);
     const totalBldgs = B.reduce((s, b) => s + b.count, 0);
@@ -1617,58 +1631,52 @@ function FeasibilityOverviewCalculator() {
                 <Fld label="코어 추가" hint="A~Z 순차 부여"><button className="btn" style={{ width: '100%', justifyContent: 'center' }} onClick={addCore}><Plus size={14} /> 코어 추가</button></Fld>
               </div>
 
-              <div className="ttl2">■ 동타입 정의 (2호조합 / 4호조합)</div>
-              <table className="g ttable blocktable" style={{ maxWidth: 1140, border: '1px solid #a89e87' }}>
+              <div className="ttl2">■ 동타입 정의 (코어 + 가변 호 · 복도형 지원)</div>
+              <table className="g ttable blocktable2" style={{ maxWidth: 1140, border: '1px solid #a89e87' }}>
                 <colgroup>
-                  <col style={{ width: '4%' }} /><col style={{ width: '7%' }} /><col style={{ width: '8%' }} />
-                  <col style={{ width: '8%' }} /><col style={{ width: '12%' }} /><col style={{ width: '12%' }} />
-                  <col style={{ width: '8%' }} /><col style={{ width: '12%' }} /><col style={{ width: '12%' }} />
-                  <col style={{ width: '7%' }} /><col style={{ width: '10%' }} />
+                  <col style={{ width: '4%' }} /><col style={{ width: '8%' }} /><col style={{ width: '68%' }} /><col style={{ width: '8%' }} /><col style={{ width: '12%' }} />
                 </colgroup>
                 <thead>
                   <tr>
-                    <th title="≡ 드래그로 순서 이동">≡</th><th>동타입</th><th>조합</th>
-                    <th>코어 1</th><th>호 1<span className="thhint">타입·층수·필로티</span></th><th>호 2<span className="thhint">타입·층수·필로티</span></th>
-                    <th>코어 2</th><th>호 3<span className="thhint">타입·층수·필로티</span></th><th>호 4<span className="thhint">타입·층수·필로티</span></th>
-                    <th>기준층</th><th>+ / −</th>
+                    <th title="≡ 드래그로 순서 이동">≡</th><th>동타입</th><th>구성 (코어 · 호) <span className="thhint">각 호: 타입 · 층수 · 필로티 · 호 추가/삭제</span></th><th>기준층</th><th>+ / −</th>
                   </tr>
                 </thead>
                 <tbody>
                   {blocks.map((b, bi) => {
-                    const is4 = b.combo === '4';
                     const typeOpts = [{ value: '', label: '−' }, ...types.map((t) => ({ value: String(t.id), label: t.name || `타입${t.id}` }))];
                     const coreOpts = cores.map((c) => ({ value: c.k, label: `코어${c.k}` }));
-                    const slotCell = (si) => (
-                      <td className="slotcell">
-                        <div className="slotctl">
-                          <FSel v={b['s' + si]} on={uBlock(b.id, 's' + si)} w="100%" opts={typeOpts} />
-                          <div className="slotmeta">
-                            <FIn v={b['fl' + si]} on={uBlock(b.id, 'fl' + si)} w="100%" ph={String(isBlank(b.floors) ? D.up : b.floors)} />
-                            <label className="pilchk" title="1층 필로티 — 해당 호 주거층수 −1">
-                              <input type="checkbox" checked={b['p' + si] === '1'} onChange={(e) => uBlock(b.id, 'p' + si)(e.target.checked ? '1' : '')} />
-                              필로티
-                            </label>
-                          </div>
-                        </div>
-                      </td>
-                    );
+                    const nc = (b.cores && b.cores.length) || 1;
                     return (
                       <tr key={b.id} {...rowDrop('blocks', b.id)}>
                         <td className="ctr handle" {...rowGrab('blocks', b.id)} title="드래그하여 순서 이동">≡</td>
                         <th>동타입{String.fromCharCode(65 + bi)}</th>
-                        <td><div className="comboctl"><FSel v={b.combo} on={uBlock(b.id, 'combo')} w="100%" opts={[{ value: '2', label: '2호조합' }, { value: '4', label: '4호조합' }]} />{is4 && <FSel v={b.shape || ''} on={uBlock(b.id, 'shape')} w="100%" opts={[{ value: '', label: '─ 일자' }, { value: 'L', label: 'ㄱ자' }]} />}</div></td>
-                        <td className="corecell"><FSel v={b.core1} on={uBlock(b.id, 'core1')} w="100%" opts={coreOpts} /></td>
-                        {slotCell(1)}
-                        {slotCell(2)}
-                        {is4 ? (
-                          <>
-                            <td className="corecell"><FSel v={b.core2} on={uBlock(b.id, 'core2')} w="100%" opts={coreOpts} /></td>
-                            {slotCell(3)}
-                            {slotCell(4)}
-                          </>
-                        ) : (
-                          <td colSpan={3} className="ctr nt dimcell">− (2호조합: 코어 1개)</td>
-                        )}
+                        <td className="compcell">
+                          <div className="compbar">
+                            <span className="complbl">코어</span>
+                            <FSel v={String(nc)} on={(v) => setCoreCount(b.id, Number(v))} w={64} opts={[{ value: '1', label: '1개' }, { value: '2', label: '2개' }]} />
+                            {(b.cores || ['A']).map((ck, ci) => (
+                              <FSel key={'bc' + ci} v={ck} on={uBlockCore(b.id, ci)} w={78} opts={coreOpts} />
+                            ))}
+                            {nc === 2 && <FSel v={b.shape || ''} on={uBlock(b.id, 'shape')} w={84} opts={[{ value: '', label: '─ 일자' }, { value: 'L', label: 'ㄱ자(4호)' }]} />}
+                            <span className="compnote">코어·복도 면적은 코어 바닥면적에 포함 입력</span>
+                          </div>
+                          <div className="unitrow">
+                            {(b.units || []).map((u, ui) => (
+                              <div className="unitcard" key={'u' + ui}>
+                                <div className="unitcardhd"><span>호 {ui + 1}</span>{(b.units.length > 1) && <button className="ucdel" onClick={() => delUnit(b.id, ui)} title="이 호 삭제">×</button>}</div>
+                                <FSel v={u.t} on={uUnit(b.id, ui, 't')} w="100%" opts={typeOpts} />
+                                <div className="slotmeta">
+                                  <FIn v={u.fl} on={uUnit(b.id, ui, 'fl')} w="100%" ph={String(isBlank(b.floors) ? D.up : b.floors)} />
+                                  <label className="pilchk" title="1층 필로티 — 해당 호 주거층수 −1">
+                                    <input type="checkbox" checked={u.pil === true || u.pil === '1'} onChange={(e) => uUnit(b.id, ui, 'pil')(e.target.checked)} />
+                                    필로티
+                                  </label>
+                                </div>
+                              </div>
+                            ))}
+                            <button className="unitadd" onClick={() => addUnit(b.id)} title="호 추가">＋<br />호 추가</button>
+                          </div>
+                        </td>
                         <td><FIn v={b.floors} on={uBlock(b.id, 'floors')} w="100%" ph={String(D.up)} /></td>
                         <td className="ctr" style={{ whiteSpace: 'nowrap' }}>
                           <button className="icb add" onClick={() => insertBlockAfter(b.id)} title="이 행 아래에 동타입 추가">＋</button>
