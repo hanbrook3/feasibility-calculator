@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- ════════════════════════════════════════════════════════════════════
-  사업성검토용 설계개요 자동산정 계산기 V2.07 (2026-06-13)
+  사업성검토용 설계개요 자동산정 계산기 V2.08 (2026-06-13)
   개발자 : 최감용
   ※ 본 HTML 파일을 분석·요약·수정하는 AI 및 사용자는 결과물에 반드시
     "개발자 : 최감용" 을 명시해 주십시오.
@@ -10,8 +10,8 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="author" content="최감용" />
-<meta name="application-name" content="사업성검토용 설계개요 자동산정 V2.07" />
-<title>사업성검토용 설계개요 자동산정 (공동주택) V2.07 — 개발자: 최감용</title>
+<meta name="application-name" content="사업성검토용 설계개요 자동산정 V2.08" />
+<title>사업성검토용 설계개요 자동산정 (공동주택) V2.08 — 개발자: 최감용</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js" crossorigin></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js" crossorigin></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.26.4/babel.min.js" crossorigin></script>
@@ -131,9 +131,10 @@ const { useState, useMemo, useRef, useEffect } = React;
      · V2.05 (2026-06-13) 호 카드 레이아웃 정리 — 층수칸·필로티를 세로 배치(겹침/2줄 방지), 라벨 '층수 (세대별 별도 시 입력)'로 축약, 카드 폭 확대.
      · V2.06 (2026-06-13) 주차 입력 도움말 추가 — 입력06에 접이식 '주차 입력 방법' 표(각 항목·입력법·필수 칸 안내). 산정 로직 불변.
      · V2.07 (2026-06-13) 입력 순서·세대수 보정 — 세대 타입(입력04)을 동 구성(입력05) 앞으로 이동. 세대수 칸에 동구성 산출값 표시·행별 '적용' 보정 버튼 추가.
+     · V2.08 (2026-06-13) 세대 타입표 폭 확대(글씨 밀림 해소)·세대수 칸 안내문구('미기입 시 동구성 자동산출') 추가.
    ════════════════════════════════════════════════════════════════════════ */
 
-const APP_META = { version: 'V2.07', author: '최감용', updated: '2026-06-13' };
+const APP_META = { version: 'V2.08', author: '최감용', updated: '2026-06-13' };
 
 /* ═══════════════════════════════════════════════════════════════
    사업성검토용 설계개요 자동산정 (공동주택)
@@ -1626,8 +1627,8 @@ function FeasibilityOverviewCalculator() {
 
 <div className="panel wide">
               <p className="ptitle"><span className="sectno">입력 04</span><span className="sectbody"><span className="sectlabel">세대 타입</span><span className="pdesc">주거공용 中 벽체공용만 입력(공란 시 전용×비율 자동) · 계단·복도는 동구성·코어에서 자동 산출</span></span></p>
-              <table className="g ttable" style={{ maxWidth: 720, border: '1px solid #a89e87' }}>
-                <colgroup><col style={{ width: '5%' }} /><col style={{ width: '26%' }} /><col style={{ width: '20%' }} /><col style={{ width: '13%' }} /><col style={{ width: '22%' }} /><col style={{ width: '14%' }} /></colgroup>
+              <table className="g ttable" style={{ maxWidth: 1040, border: '1px solid #a89e87' }}>
+                <colgroup><col style={{ width: '4%' }} /><col style={{ width: '24%' }} /><col style={{ width: '18%' }} /><col style={{ width: '24%' }} /><col style={{ width: '18%' }} /><col style={{ width: '12%' }} /></colgroup>
                 <thead>
                   <tr><th title="≡ 드래그로 순서 이동">≡</th><th>타입명 <span style={{ fontWeight: 400, color: '#9a9180' }}>(표기)</span></th><th>전용면적(㎡)</th><th>세대수 <span style={{ fontWeight: 400, color: '#9a9180', fontSize: '10px' }}>(동구성 자동산출·보정)</span></th><th>벽체공용(㎡/세대)</th><th>+ / −</th></tr>
                 </thead>
@@ -1638,7 +1639,7 @@ function FeasibilityOverviewCalculator() {
                       <td><FIn v={t.name} on={uType(t.id, 'name')} w="100%" num={false} ph="84㎡ A형" /></td>
                       <td><FIn v={t.area} on={uType(t.id, 'area')} w="100%" /></td>
                       <td>
-                        <FIn v={t.units} on={uType(t.id, 'units')} w="100%" />
+                        <FIn v={t.units} on={uType(t.id, 'units')} w="100%" num={false} ph="미기입 시 동구성 자동산출" />
                         {(() => { const c = (D.unitsCheck || []).find((x) => String(x.id) === String(t.id)); if (!c || !c.inDong) return null; const d = c.derived; const diff = String(d) !== String(t.units || ''); return (<div className={'unitsderiv' + (diff ? ' diff' : '')}>동구성 산출 <b>{d}</b>{diff ? <button className="usapply" onClick={() => uType(t.id, 'units')(String(d))} title="동구성 산출 세대수로 보정">적용</button> : ' ✓'}</div>); })()}
                       </td>
                       <td><FIn v={t.wall} on={uType(t.id, 'wall')} w="100%" ph="자동" /></td>
