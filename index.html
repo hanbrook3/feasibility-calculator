@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- ════════════════════════════════════════════════════════════════════
-  사업성검토용 설계개요 자동산정 계산기 V1.30 (2026-06-13)
+  사업성검토용 설계개요 자동산정 계산기 V1.31 (2026-06-13)
   개발자 : 최감용
   ※ 본 HTML 파일을 분석·요약·수정하는 AI 및 사용자는 결과물에 반드시
     "개발자 : 최감용" 을 명시해 주십시오.
@@ -10,8 +10,8 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="author" content="최감용" />
-<meta name="application-name" content="사업성검토용 설계개요 자동산정 V1.30" />
-<title>사업성검토용 설계개요 자동산정 (공동주택) V1.30 — 개발자: 최감용</title>
+<meta name="application-name" content="사업성검토용 설계개요 자동산정 V1.31" />
+<title>사업성검토용 설계개요 자동산정 (공동주택) V1.31 — 개발자: 최감용</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js" crossorigin></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js" crossorigin></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.26.4/babel.min.js" crossorigin></script>
@@ -121,7 +121,7 @@ const { useState, useMemo, useRef, useEffect } = React;
        자동조회 버튼·API키 UI 제거. 근생 주차 원단위 적용 추가. 코덱스 디자인(V1.01~1.20) 위에 통합.
    ════════════════════════════════════════════════════════════════════════ */
 
-const APP_META = { version: 'V1.30', author: '최감용', updated: '2026-06-13' };
+const APP_META = { version: 'V1.31', author: '최감용', updated: '2026-06-13' };
 
 /* ═══════════════════════════════════════════════════════════════
    사업성검토용 설계개요 자동산정 (공동주택)
@@ -1492,18 +1492,22 @@ function FeasibilityOverviewCalculator() {
                     {!((SIDO_SGG[proj.sido] || []).includes(proj.si)) && <FIn v={proj.si} on={uProj('si')} w="100%" num={false} ph="시·군·구 직접 입력" />}
                   </>
                 </Fld>
+                <Fld label="용도지역" hint="시·군·구 선택 시 건폐·용적률 자동 적용(입력02에서 보정)">
+                  <FSel v={zone.zoneId} on={onZoneSelect} w="100%" opts={ZONES.map((z) => ({ value: z.id, label: z.name }))} />
+                </Fld>
+                <Fld label="실사용 대지면적 (㎡)"><FIn v={site.area} on={uSite('area')} w="100%" /></Fld>
                 <Fld label="상세 위치" tx><FIn v={proj.detail} on={uProj('detail')} w="100%" num={false} ph="○○동 ○○번지 일원" /></Fld>
                 <Fld label="접한 도로" cls="sp2" tx><FIn v={proj.road} on={uProj('road')} w="100%" num={false} ph="예: 8M 도로, 25M 도로" /></Fld>
                 <div className="sp2" style={{ marginTop: 2 }}>
                   {ordState.status === 'done' && (
-                    <div className="nt" style={{ marginTop: 6, lineHeight: 1.8 }}>
+                    <div className="nt orddb-note" style={{ marginTop: 6, lineHeight: 1.65 }}>
                       <b style={{ color: '#2b6e46' }}>{ordState.si} 조례 DB 적용 완료</b>
                       {' — 적용 ' + ordState.applied.length + '건'}{ordState.applied.length > 0 ? ': ' + ordState.applied.join(' · ') : ''}
-                      {ordState.kept.length > 0 && <><br />기존 입력 유지 {ordState.kept.length}건({ordState.kept.join(' · ')}) — 자동값으로 바꾸려면 해당 칸을 비우고 재조회</>}
-                      {ordState.missing.length > 0 && <><br />DB 미수록 {ordState.missing.length}건 — 상위법 기준 적용, 해당 조례 직접 확인필요</>}
-                      {Object.values(ordState.srcs).filter(Boolean).length > 0 && <><br />출처: {Object.values(ordState.srcs).filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).slice(0, 4).join(' / ')}</>}
-                      <br /><span style={{ color: '#a05252' }}>※ DB 수록값(법제처 원문 확인분) — 적용 전 최신 개정 여부 확인필요 · 처분시법주의(허가신청 시점의 시행 조례 기준)</span>
-                      {ordState.note ? <><br />비고: {ordState.note}</> : null}
+                      {ordState.kept.length > 0 && <>{' · '}기존 입력 유지 {ordState.kept.length}건({ordState.kept.join(', ')})</>}
+                      {ordState.missing.length > 0 && <>{' · '}DB 미수록 {ordState.missing.length}건(상위법 기준·확인필요)</>}
+                      {Object.values(ordState.srcs).filter(Boolean).length > 0 && <>{' · 출처: '}{Object.values(ordState.srcs).filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).slice(0, 4).join(' / ')}</>}
+                      {ordState.note ? <>{' · 비고: '}{ordState.note}</> : null}
+                      <span style={{ color: '#a05252' }}>{' · ※ DB 수록값(법제처 원문 확인분) — 적용 전 최신 개정 여부 확인필요 · 처분시법주의(허가신청 시점 시행 조례 기준)'}</span>
                     </div>
                   )}
                 </div>
@@ -1511,13 +1515,9 @@ function FeasibilityOverviewCalculator() {
             </div>
 
 <div className="panel">
-              <p className="ptitle"><span className="sectno">입력 02</span><span className="sectbody"><span className="sectlabel">대지 · 용도지역 · 법정 한도</span><span className="pdesc">건폐율·용적률·조경비율은 조례/지구단위계획 우선(확인필요)</span></span></p>
+              <p className="ptitle"><span className="sectno">입력 02</span><span className="sectbody"><span className="sectlabel">법정 한도 (자동적용 보정)</span><span className="pdesc">입력01에서 자동 적용된 건폐·용적·조경 한도를 직접 보정 — 조례/지구단위계획 우선(확인필요)</span></span></p>
               <div className="fgrid">
-                <Fld label="실사용 대지면적 (㎡)"><FIn v={site.area} on={uSite('area')} w="100%" /></Fld>
                 <Fld label="기부채납 면적 (㎡)" tx><FIn v={site.donate} on={uSite('donate')} w="100%" /></Fld>
-                <Fld label="용도지역" hint="국토계획법 시행령 §84·§85 범위 자동입력">
-                  <FSel v={zone.zoneId} on={onZoneSelect} w="100%" opts={ZONES.map((z) => ({ value: z.id, label: z.name }))} />
-                </Fld>
                 <Fld label="지역지구 병기" tx><FIn v={zone.district} on={uZone('district')} w="100%" num={false} ph="예: 지구단위계획구역" /></Fld>
                 <Fld label="법정 건폐율 (%)"><FIn v={zone.bcr} on={uZone('bcr')} w="100%" /></Fld>
                 <Fld label="용적률 기준 (%)"><FIn v={zone.farBase} on={uZone('farBase')} w="100%" /></Fld>
@@ -1537,8 +1537,8 @@ function FeasibilityOverviewCalculator() {
                 <Fld label="주동수" tx hint="공란 = 동구성 동수 합 · 라인 분해 입력 시 실제 주동수 기입"><FIn v={bld.bldgCount} on={uBld('bldgCount')} w="100%" ph="자동" /></Fld>
                 <Fld label="지하 층수"><FIn v={bld.down} on={uBld('down')} w="100%" /></Fld>
                 <Fld label="층고 (M)" tx><FIn v={bld.fh} on={uBld('fh')} w="100%" /></Fld>
-                <Fld label="건축면적 산정">
-                  <FSel v={bld.areaMode} on={uBld('areaMode')} w="100%" opts={[{ value: 'auto', label: '자동 (기준층 × 계수)' }, { value: 'manual', label: '직접 입력' }]} />
+                <Fld label="건축면적 산정" hint="기본 자동 반영(기준층 × 계수) · 직접 보정하려면 '직접 입력' 선택">
+                  <FSel v={bld.areaMode} on={uBld('areaMode')} w="100%" opts={[{ value: 'auto', label: '자동 반영 (기준층 × 계수)' }, { value: 'manual', label: '직접 입력' }]} />
                 </Fld>
                 {bld.areaMode === 'auto'
                   ? <Fld label="건축면적 계수" hint="발코니 등 할증 · 추정치"><FIn v={bld.coef} on={uBld('coef')} w="100%" /></Fld>
