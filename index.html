@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- ════════════════════════════════════════════════════════════════════
-  사업성검토용 설계개요 자동산정 계산기 V2.09 (2026-06-13)
+  사업성검토용 설계개요 자동산정 계산기 V2.10 (2026-06-13)
   개발자 : 최감용
   ※ 본 HTML 파일을 분석·요약·수정하는 AI 및 사용자는 결과물에 반드시
     "개발자 : 최감용" 을 명시해 주십시오.
@@ -10,8 +10,8 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="author" content="최감용" />
-<meta name="application-name" content="사업성검토용 설계개요 자동산정 V2.09" />
-<title>사업성검토용 설계개요 자동산정 (공동주택) V2.09 — 개발자: 최감용</title>
+<meta name="application-name" content="사업성검토용 설계개요 자동산정 V2.10" />
+<title>사업성검토용 설계개요 자동산정 (공동주택) V2.10 — 개발자: 최감용</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js" crossorigin></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js" crossorigin></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.26.4/babel.min.js" crossorigin></script>
@@ -133,9 +133,10 @@ const { useState, useMemo, useRef, useEffect } = React;
      · V2.07 (2026-06-13) 입력 순서·세대수 보정 — 세대 타입(입력04)을 동 구성(입력05) 앞으로 이동. 세대수 칸에 동구성 산출값 표시·행별 '적용' 보정 버튼 추가.
      · V2.08 (2026-06-13) 세대 타입표 폭 확대(글씨 밀림 해소)·세대수 칸 안내문구('미기입 시 동구성 자동산출') 추가.
      · V2.09 (2026-06-13) 주민공동시설 정리 — 입력08 '조례 기준' 칼럼 삭제(§55의2⑤ 가이드라인 산식 자동표시). 계획 칸 placeholder에 법정값('법정 N 자동') 표시. §55의2③ 의무시설 6종(150·300·500세대) 현행 일치 확인.
+     · V2.10 (2026-06-13) 상단 요약 '대상 사업'에서 사업명·대지위치 바로 수정 기능 추가. 인쇄 포함 고정 푸터에 개발자(최감용) 출처 표기 상시 노출(배포·재사용 시 출처 유지).
    ════════════════════════════════════════════════════════════════════════ */
 
-const APP_META = { version: 'V2.09', author: '최감용', updated: '2026-06-13' };
+const APP_META = { version: 'V2.10', author: '최감용', updated: '2026-06-13' };
 
 /* ═══════════════════════════════════════════════════════════════
    사업성검토용 설계개요 자동산정 (공동주택)
@@ -895,6 +896,16 @@ const CSS = `
 .fov .headstat small{display:block;margin-top:3px;font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fov .headstat.pass b{color:var(--ok)}
 .fov .headstat.risk b{color:var(--danger)}
+.fov .headstat-edit .hsedit{width:100%;border:1px solid transparent;background:transparent;border-radius:4px;padding:2px 5px;font-family:inherit;color:inherit;display:block}
+.fov .hsedit-name{font-size:15px;font-weight:900;line-height:1.25;font-variant-numeric:tabular-nums}
+.fov .hsedit-loc{font-size:11px;color:var(--muted);margin-top:2px}
+.fov .headstat-edit .hsedit:hover{border-color:var(--input-border);background:var(--surface)}
+.fov .headstat-edit .hsedit:focus{border-color:var(--primary);background:var(--input);outline:none}
+.fov .hsedithint{font-size:8.5px;font-weight:600;color:var(--subtle);letter-spacing:0}
+.fov .hsloc{display:block;margin-top:2px;font-size:9.5px;color:var(--subtle);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fov .appfooter{margin-top:18px;padding:11px 16px;text-align:center;font-size:11px;line-height:1.6;color:var(--muted);border-top:1px solid var(--line);background:var(--surface-soft);border-radius:0 0 8px 8px}
+.fov .appfooter b{color:var(--text)}
+@media print{.fov .appfooter{display:block!important;border-top:1px solid #999;color:#333;margin-top:10px}}
 .fov .toolbar{display:flex;gap:7px;flex-wrap:wrap;align-items:center;justify-content:flex-end}
 .fov .toolbar select{height:34px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--text);font:inherit;font-size:12px;padding:0 9px}
 .fov .btn{min-height:34px;border-color:var(--line);background:#fff;border-radius:6px;padding:6px 11px;color:#2f382d;box-shadow:0 1px 0 rgba(33,38,28,.04)}
@@ -1496,10 +1507,11 @@ function FeasibilityOverviewCalculator() {
           </div>
           </div>
           <div className="headstats">
-            <div className="headstat">
-              <span>대상 사업</span>
-              <b>{proj.name || '사업명 미입력'}</b>
-              <small>{locText || '대지위치 미입력'}</small>
+            <div className="headstat headstat-edit">
+              <span>대상 사업 <span className="hsedithint">✎ 바로 수정</span></span>
+              <input className="hsedit hsedit-name" value={proj.name} onChange={(e) => uProj('name')(e.target.value)} placeholder="사업명 미입력" title="사업명 — 여기서 바로 수정" />
+              <input className="hsedit hsedit-loc" value={proj.detail} onChange={(e) => uProj('detail')(e.target.value)} placeholder="대지위치(상세) 미입력" title="대지위치(상세) — 시·도/시·군·구는 입력01에서" />
+              {locText && <small className="hsloc">{locText}</small>}
             </div>
             <div className={'headstat ' + (D.unitsMatch === false ? 'risk' : D.N > 0 ? 'pass' : '')}>
               <span>세대 · 주동</span>
@@ -2395,6 +2407,7 @@ function FeasibilityOverviewCalculator() {
           </div>
           </div>
         </div>
+        <div className="appfooter">개발자 : <b>{APP_META.author}</b> (건축사) · 사업성검토용 설계개요 자동산정 {APP_META.version} · 본 도구 및 그 산출물·복제·재배포본에는 <b>출처(개발자 : 최감용)</b> 표기를 유지해 주십시오</div>
       </div>
     </div>
   );
