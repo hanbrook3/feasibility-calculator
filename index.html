@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- ════════════════════════════════════════════════════════════════════
-  사업성검토용 설계개요 자동산정 계산기 V2.00 (2026-06-13)
+  사업성검토용 설계개요 자동산정 계산기 V2.01 (2026-06-13)
   개발자 : 최감용
   ※ 본 HTML 파일을 분석·요약·수정하는 AI 및 사용자는 결과물에 반드시
     "개발자 : 최감용" 을 명시해 주십시오.
@@ -10,8 +10,8 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="author" content="최감용" />
-<meta name="application-name" content="사업성검토용 설계개요 자동산정 V2.00" />
-<title>사업성검토용 설계개요 자동산정 (공동주택) V2.00 — 개발자: 최감용</title>
+<meta name="application-name" content="사업성검토용 설계개요 자동산정 V2.01" />
+<title>사업성검토용 설계개요 자동산정 (공동주택) V2.01 — 개발자: 최감용</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js" crossorigin></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js" crossorigin></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.26.4/babel.min.js" crossorigin></script>
@@ -122,9 +122,11 @@ const { useState, useMemo, useRef, useEffect } = React;
      · V2.00 (2026-06-13) 동타입 데이터 모델 개편 — 고정 2호/4호(코어당 최대 2세대)에서
        가변 호(units 배열)로 전환. 코어당 세대 수 제한 해제 → 복도형(코어+복도에 다수 세대)
        지원. 호 추가/삭제·코어 1~2개 선택. 기존 프리셋은 자동 정규화(산정 로직·결과 불변).
+     · V2.01 (2026-06-13) 동타입 입력·모식도 개선 — 호 카드에 '세대 타입/이 호 층수(비우면 기준층)/
+       1층 필로티' 라벨 추가(이해도). 코어 1~6개 선택 확대. 모식도 코어를 세대 옆→후면(복도 띠) 배치.
    ════════════════════════════════════════════════════════════════════════ */
 
-const APP_META = { version: 'V2.00', author: '최감용', updated: '2026-06-13' };
+const APP_META = { version: 'V2.01', author: '최감용', updated: '2026-06-13' };
 
 /* ═══════════════════════════════════════════════════════════════
    사업성검토용 설계개요 자동산정 (공동주택)
@@ -587,70 +589,42 @@ const TYPE_PAL = [
 ];
 
 function DongDiagram({ b, bi, types, cores, info, compact = false }) {
-  const UH = 46, CW = 30, WALL = 3, BOT = 20, TOPLBL = 22, SC = 0.85;
+  const UH = 44, CH = 18, BOT = 18, TOPLBL = 16, SC = 0.85;
   const find = (sid) => { const i = types.findIndex((t) => String(t.id) === String(sid)); return i >= 0 ? { t: types[i], pal: TYPE_PAL[i % TYPE_PAL.length] } : null; };
   const coreObj = (k) => cores.find((c) => c.k === k) || null;
-  const uw = (sid) => { const f = find(sid); return f ? Math.max(54, (parseFloat(f.t.area) || 0) * SC) : 54; };
+  const uw = (sid) => { const f = find(sid); return f ? Math.max(56, (parseFloat(f.t.area) || 0) * SC) : 56; };
   const units = b.units || [];
   const coreKeys = (b.cores && b.cores.length ? b.cores : ['A']);
   const nc = coreKeys.length;
-  const isL = nc === 2 && b.shape === 'L' && units.length === 4;
   const floorOf = (u) => String(toNum(u.fl, toNum(b.floors, 0)) || toNum(b.floors, 0) || '');
   const flShort = (u) => (isBlank(u.fl) || String(u.fl) === String(b.floors) ? '' : String(u.fl));
 
-  /* 코어를 호 시퀀스에 균등 배치: nc개 그룹으로 units 분할, 각 그룹 [호…][코어][호…] (코어 그룹 가운데), 그룹 사이 맞벽 */
-  const buildSeq = () => {
-    const seq = [];
-    if (units.length === 0) { coreKeys.forEach((k, ci) => seq.push({ kind: 'c', k })); return seq; }
-    const groups = []; const per = Math.ceil(units.length / nc);
-    for (let g = 0; g < nc; g++) { const gu = units.slice(g * per, g === nc - 1 ? units.length : (g + 1) * per); if (gu.length || g < nc) groups.push(gu); }
-    groups.forEach((gu, gi) => {
-      if (gi > 0) seq.push({ kind: 'w' });
-      const mid = Math.ceil(gu.length / 2);
-      gu.forEach((u, j) => {
-        if (j === mid) seq.push({ kind: 'c', k: coreKeys[gi] || coreKeys[0] });
-        const ui = units.indexOf(u);
-        seq.push({ kind: 'u', u, ui });
-      });
-      if (mid >= gu.length) seq.push({ kind: 'c', k: coreKeys[gi] || coreKeys[0] });
-    });
-    return seq;
-  };
-  const hseg = isL ? [{ kind: 'u', u: units[0], ui: 0 }, { kind: 'c', k: coreKeys[0] }, { kind: 'u', u: units[1], ui: 1 }] : buildSeq();
+  /* 전면: 세대 박스 가로 나열 / 후면(상단): 복도 + 코어 띠 (코어는 세대 뒤에 붙음) */
   let hx = 1;
-  const hparts = hseg.map((sg) => { const w = sg.kind === 'w' ? WALL : sg.kind === 'c' ? CW : uw(sg.u.t); const p = { ...sg, x: hx, w }; hx += w; return p; });
-
-  const stripH = isL ? uw(units[2].t) + CW + uw(units[3].t) : 0;
-  const H = Math.ceil(Math.max(UH + TOPLBL, stripH + TOPLBL - 4) + BOT);
-  const gy = H - BOT - UH;
-  const W = Math.ceil(hx + (isL ? 3 + 50 + 58 : 0) + 1);
+  const hparts = units.map((u, ui) => { const w = uw(u.t); const p = { u, ui, x: hx, w }; hx += w; return p; });
+  if (units.length === 0) hx = 120;
+  const corrW = hx - 1;
+  const W = Math.ceil(hx + 1);
+  const H = TOPLBL + CH + UH + BOT;
+  const corrY = TOPLBL;            /* 복도·코어 띠 상단 */
+  const gy = TOPLBL + CH;          /* 세대 박스 상단 */
   const assignedHomes = units.filter((u) => !isBlank(u.t)).length;
-  const comboName = `${assignedHomes || units.length}호` + (nc === 1 ? '·코어1' : '·코어2') + (isL ? '·ㄱ자' : '');
+  const comboName = `${assignedHomes || units.length}호` + `·코어${nc}` + (nc >= 2 && units.length > nc * 2 ? '·복도형' : (units.length > 2 ? '·복도형' : ''));
 
-  const unitRect = (f, x, y, w, h, rot, pil, flv, floorFull) => f ? (() => {
-    const floorTxt = floorFull ? `${floorFull}F` : (flv ? `${flv}F` : '');
-    const typeTxt = f.t.name || '타입';
-    return (
-      <g>
-        <rect x={x} y={y} width={w} height={h} fill={f.pal.bg} stroke={f.pal.bd} strokeWidth="1.3" />
-        {pil && (<g opacity="0.85"><line x1={x + 1.5} y1={y + 1.5} x2={x + w - 1.5} y2={y + h - 1.5} stroke="#9a4036" strokeWidth="1.2" /><line x1={x + w - 1.5} y1={y + 1.5} x2={x + 1.5} y2={y + h - 1.5} stroke="#9a4036" strokeWidth="1.2" /></g>)}
-        {rot ? (
-          <>
-            <text x={x + w / 2} y={y + h / 2 - 3} textAnchor="middle" fontSize="12" fontWeight="900" fill="#1f1f1f">{floorTxt}</text>
-            <text x={x + w / 2} y={y + h / 2 + 10} textAnchor="middle" fontSize="8.4" fontWeight="900" fill="#3d3526">{typeTxt}</text>
-            {pil && <text x={x + w + 5} y={y + h / 2 + 3} fontSize="8" fontWeight="900" fill="#9a4036">1층 필로티</text>}
-          </>
-        ) : (
-          <>
-            <text x={x + w / 2} y={y + h / 2 + 3} textAnchor="middle" fontSize="13" fontWeight="900" fill="#1f1f1f">{floorTxt}</text>
-            <text x={x + w - 5} y={y + h - 7} textAnchor="end" fontSize="9.6" fontWeight="900" fill="#3d3526">{typeTxt}</text>
-            {pil && <text x={x + w / 2} y={y + h + 11} textAnchor="middle" fontSize="8.4" fontWeight="900" fill="#9a4036">1층 필로티</text>}
-          </>
-        )}
-      </g>
-    );
-  })() : (
-    <g><rect x={x} y={y} width={w} height={h} fill="#fbf9f1" stroke="#b9b09a" strokeWidth="1" strokeDasharray="4 3" /><text x={x + w / 2} y={y + h / 2 + 3.5} textAnchor="middle" fontSize="9.5" fill="#a59d89">{rot ? '−' : '호'}</text></g>
+  /* 코어 박스: 세대열 폭을 nc등분한 각 구간 중앙에 배치 */
+  const CBW = Math.max(30, Math.min(48, corrW / Math.max(nc, 1) * 0.5));
+  const coreBoxes = coreKeys.map((k, ci) => { const segC = (ci + 0.5) * (corrW / nc) + 1; return { k, x: segC - CBW / 2, w: CBW }; });
+
+  const unitRect = (f, x, y, w, h, pil, flv, floorFull) => f ? (
+    <g>
+      <rect x={x} y={y} width={w} height={h} fill={f.pal.bg} stroke={f.pal.bd} strokeWidth="1.3" />
+      {pil && (<g opacity="0.85"><line x1={x + 1.5} y1={y + 1.5} x2={x + w - 1.5} y2={y + h - 1.5} stroke="#9a4036" strokeWidth="1.2" /><line x1={x + w - 1.5} y1={y + 1.5} x2={x + 1.5} y2={y + h - 1.5} stroke="#9a4036" strokeWidth="1.2" /></g>)}
+      <text x={x + w / 2} y={y + h / 2 + 2} textAnchor="middle" fontSize="13" fontWeight="900" fill="#1f1f1f">{floorFull ? `${floorFull}F` : (flv ? `${flv}F` : '')}</text>
+      <text x={x + w - 5} y={y + h - 6} textAnchor="end" fontSize="9.4" fontWeight="900" fill="#3d3526">{f.t.name || '타입'}</text>
+      {pil && <text x={x + w / 2} y={y + h + 10} textAnchor="middle" fontSize="8.2" fontWeight="900" fill="#9a4036">1층 필로티</text>}
+    </g>
+  ) : (
+    <g><rect x={x} y={y} width={w} height={h} fill="#fbf9f1" stroke="#b9b09a" strokeWidth="1" strokeDasharray="4 3" /><text x={x + w / 2} y={y + h / 2 + 3.5} textAnchor="middle" fontSize="9.5" fill="#a59d89">호</text></g>
   );
 
   return (
@@ -664,17 +638,19 @@ function DongDiagram({ b, bi, types, cores, info, compact = false }) {
       )}
       <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} overflow="visible" role="img" aria-label={`동타입${String.fromCharCode(65 + bi)} 평면 모식도`}>
         <defs><pattern id={`hat${b.id}`} width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="5" height="5" fill="#f4f1e7" /><line x1="0" y1="0" x2="0" y2="5" stroke="#a89e87" strokeWidth="1.1" /></pattern></defs>
-        {hparts.map((p, i) => {
-          if (p.kind === 'w') return <rect key={i} x={p.x} y={gy} width={p.w} height={UH} fill="#57503e" />;
-          if (p.kind === 'c') { const c = coreObj(p.k); return (<g key={i}><rect x={p.x} y={gy - 7} width={p.w} height={UH + 7} fill={`url(#hat${b.id})`} stroke="#6b6047" strokeWidth="1.3" /><text x={p.x + p.w / 2} y={gy - 11} textAnchor="middle" fontSize="9" fontWeight="700" fill="#6b6047">{c ? `코어 ${c.k}` : '코어'}</text></g>); }
-          return <g key={i}>{unitRect(find(p.u.t), p.x, gy, p.w, UH, false, p.u.pil === true || p.u.pil === '1', flShort(p.u), floorOf(p.u))}</g>;
-        })}
-        {isL && (() => {
-          const vx = hx + 3, VW = 50, h3 = uw(units[2].t), h4 = uw(units[3].t);
-          const y3 = H - BOT - h3, yc = y3 - CW, y4 = yc - h4;
-          const c2 = coreObj(coreKeys[1]);
-          return (<g><rect x={hx} y={gy} width={3} height={UH} fill="#57503e" /><g>{unitRect(find(units[2].t), vx, y3, VW, h3, true, units[2].pil === true || units[2].pil === '1', flShort(units[2]), floorOf(units[2]))}</g><rect x={vx - 7} y={yc} width={VW + 7} height={CW} fill={`url(#hat${b.id})`} stroke="#6b6047" strokeWidth="1.3" /><text x={vx + (VW - 7) / 2} y={yc + CW / 2 + 3.5} textAnchor="middle" fontSize="9" fontWeight="700" fill="#6b6047">{c2 ? `코어 ${c2.k}` : '코어'}</text><g>{unitRect(find(units[3].t), vx, y4, VW, h4, true, units[3].pil === true || units[3].pil === '1', flShort(units[3]), floorOf(units[3]))}</g></g>);
-        })()}
+        {/* 후면 복도 띠 (세대 뒤) */}
+        <rect x={1} y={corrY} width={corrW} height={CH} fill="#efe9da" stroke="#cdc4ac" strokeWidth="1" />
+        <text x={4} y={corrY + CH / 2 + 3} fontSize="7.6" fontWeight="700" fill="#9a917c">복도</text>
+        {/* 코어 박스 (복도 띠 위에 겹쳐, 세대 후면) */}
+        {coreBoxes.map((cb, i) => { const c = coreObj(cb.k); return (
+          <g key={'core' + i}>
+            <rect x={cb.x} y={corrY - 4} width={cb.w} height={CH + 8} fill={`url(#hat${b.id})`} stroke="#6b6047" strokeWidth="1.3" />
+            <text x={cb.x + cb.w / 2} y={corrY - 7} textAnchor="middle" fontSize="8.4" fontWeight="700" fill="#6b6047">{c ? `코어 ${c.k}` : '코어'}</text>
+          </g>
+        ); })}
+        {/* 전면 세대 박스 */}
+        {hparts.map((p, i) => (<g key={'u' + i}>{unitRect(find(p.u.t), p.x, gy, p.w, UH, p.u.pil === true || p.u.pil === '1', flShort(p.u), floorOf(p.u))}</g>))}
+        {units.length === 0 && <text x={W / 2} y={gy + UH / 2 + 3} textAnchor="middle" fontSize="10" fill="#a59d89">호 미지정</text>}
       </svg>
       {!compact && (
         <div className="dgcap">동타입{String.fromCharCode(65 + bi)} — {comboName} · {info ? `${info.minFl === info.maxFl ? info.maxFl : `${info.minFl}~${info.maxFl}`}층 × ${info.count}동${info.pilCnt > 0 ? ` · 필로티 ${info.pilCnt}개호` : ''} · 바닥면적 합 ${fmt(info.bldgFloorArea, 2)}㎡` : '구성 미완성'}</div>
@@ -813,6 +789,8 @@ const CSS = `
 .fov .ucdel:hover{background:#e6cfc7}
 .fov .unitadd{flex:0 0 64px;border:1px dashed #b9a86a;border-radius:6px;background:#fbf7e8;color:#8a6d2a;font-size:10.5px;font-weight:800;cursor:pointer;line-height:1.35;text-align:center}
 .fov .unitadd:hover{background:#f3ead0}
+.fov .uclbl{font-size:9.5px;font-weight:800;color:#7a7058;margin-top:1px;line-height:1.2}
+.fov .uclblhint{font-weight:600;color:#a59d89}
 
 .fov .configsummary{text-align:left;padding:6px 8px!important}
 .fov .dginrow{display:block;width:max-content;max-width:100%;padding:0;background:transparent;border:0;border-left:0;border-radius:0;box-shadow:none;overflow:visible}
@@ -1170,7 +1148,7 @@ function FeasibilityOverviewCalculator() {
   const uUnit = (id, ui, k) => (v) => setBlocks((bs) => bs.map((b) => (b.id === id ? { ...b, units: b.units.map((u, i) => (i === ui ? { ...u, [k]: v } : u)) } : b)));
   const addUnit = (id) => { pushHist(); setBlocks((bs) => bs.map((b) => (b.id === id ? { ...b, units: [...b.units, { t: '', fl: '', pil: false }] } : b))); };
   const delUnit = (id, ui) => { pushHist(); setBlocks((bs) => bs.map((b) => (b.id === id ? { ...b, units: b.units.length > 1 ? b.units.filter((_, i) => i !== ui) : b.units } : b))); };
-  const setCoreCount = (id, n) => { pushHist(); setBlocks((bs) => bs.map((b) => { if (b.id !== id) return b; const avail = (cores[0] && cores[0].k) || 'A'; const second = (cores[1] && cores[1].k) || (cores[0] && cores[0].k) || 'B'; const cs = n === 2 ? [b.cores[0] || avail, b.cores[1] || second] : [b.cores[0] || avail]; return { ...b, cores: cs, shape: n === 2 ? b.shape : '' }; })); };
+  const setCoreCount = (id, n) => { pushHist(); setBlocks((bs) => bs.map((b) => { if (b.id !== id) return b; const keys = (cores || []).map((c) => c.k); const fallback = keys[0] || 'A'; const cs = []; for (let i = 0; i < n; i++) cs.push((b.cores && b.cores[i]) || keys[i] || keys[i % (keys.length || 1)] || fallback); return { ...b, cores: cs, shape: n === 2 ? b.shape : '' }; })); };
   const uBlockCore = (id, ci) => (v) => setBlocks((bs) => bs.map((b) => (b.id === id ? { ...b, cores: b.cores.map((c, i) => (i === ci ? v : c)) } : b)));
   const addBlock = () => { pushHist(); setBlocks((bs) => [...bs, newBlock()]); };
   const insertBlockAfter = (id) => { pushHist(); setBlocks((bs) => {
@@ -1653,23 +1631,24 @@ function FeasibilityOverviewCalculator() {
                         <td className="compcell">
                           <div className="compbar">
                             <span className="complbl">코어</span>
-                            <FSel v={String(nc)} on={(v) => setCoreCount(b.id, Number(v))} w={64} opts={[{ value: '1', label: '1개' }, { value: '2', label: '2개' }]} />
+                            <FSel v={String(nc)} on={(v) => setCoreCount(b.id, Number(v))} w={64} opts={[1, 2, 3, 4, 5, 6].map((n) => ({ value: String(n), label: n + '개' }))} />
                             {(b.cores || ['A']).map((ck, ci) => (
                               <FSel key={'bc' + ci} v={ck} on={uBlockCore(b.id, ci)} w={78} opts={coreOpts} />
                             ))}
-                            {nc === 2 && <FSel v={b.shape || ''} on={uBlock(b.id, 'shape')} w={84} opts={[{ value: '', label: '─ 일자' }, { value: 'L', label: 'ㄱ자(4호)' }]} />}
-                            <span className="compnote">코어·복도 면적은 코어 바닥면적에 포함 입력</span>
+                            <span className="compnote">코어 여러 개 선택 가능(복도형) · 코어·복도 면적은 코어 바닥면적에 포함 입력</span>
                           </div>
                           <div className="unitrow">
                             {(b.units || []).map((u, ui) => (
                               <div className="unitcard" key={'u' + ui}>
                                 <div className="unitcardhd"><span>호 {ui + 1}</span>{(b.units.length > 1) && <button className="ucdel" onClick={() => delUnit(b.id, ui)} title="이 호 삭제">×</button>}</div>
+                                <label className="uclbl">세대 타입</label>
                                 <FSel v={u.t} on={uUnit(b.id, ui, 't')} w="100%" opts={typeOpts} />
+                                <label className="uclbl">이 호 층수 <span className="uclblhint">(비우면 기준층 {String(isBlank(b.floors) ? D.up : b.floors)}층)</span></label>
                                 <div className="slotmeta">
-                                  <FIn v={u.fl} on={uUnit(b.id, ui, 'fl')} w="100%" ph={String(isBlank(b.floors) ? D.up : b.floors)} />
-                                  <label className="pilchk" title="1층 필로티 — 해당 호 주거층수 −1">
+                                  <FIn v={u.fl} on={uUnit(b.id, ui, 'fl')} w="100%" ph={'기준층 ' + String(isBlank(b.floors) ? D.up : b.floors)} />
+                                  <label className="pilchk" title="1층을 필로티(주차·필로티)로 비우는 호 — 주거층수 1개층 차감">
                                     <input type="checkbox" checked={u.pil === true || u.pil === '1'} onChange={(e) => uUnit(b.id, ui, 'pil')(e.target.checked)} />
-                                    필로티
+                                    1층 필로티
                                   </label>
                                 </div>
                               </div>
@@ -1691,7 +1670,7 @@ function FeasibilityOverviewCalculator() {
                 <button className="btn" onClick={addBlock}><Plus size={14} /> 동타입 추가</button>
               </div>
 
-              <div className="nt" style={{ marginTop: 4 }}>※ 각 호 입력: <b>타입 선택</b> 아래에 <b>층수</b>(공란 = 기준층)와 <b>필로티</b> 체크를 함께 입력합니다. 필로티 체크 시 해당 호의 주거층수는 1개 층 차감됩니다.</div>
+              <div className="nt" style={{ marginTop: 4 }}>※ <b>호</b> = 한 라인(세로로 쌓인 세대). 각 호에 <b>세대 타입</b>·<b>층수</b>(그 라인이 몇 개 층인지 · 비우면 기준층 적용)·<b>1층 필로티</b> 여부를 입력합니다. 예) 39층이면 그 라인에 39세대가 쌓이고, 1층 필로티면 주거 38세대. 코어는 여러 개 선택 가능(복도형).</div>
               <div className="ttl2" style={{ marginTop: 14 }}>■ 동타입별 동수구성</div>
               <table className="g ttable configtable" style={{ maxWidth: 1140, border: '1px solid #a89e87' }}>
                 <colgroup>
