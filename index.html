@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- ════════════════════════════════════════════════════════════════════
-  사업성검토용 설계개요 자동산정 계산기 V2.05 (2026-06-13)
+  사업성검토용 설계개요 자동산정 계산기 V2.06 (2026-06-13)
   개발자 : 최감용
   ※ 본 HTML 파일을 분석·요약·수정하는 AI 및 사용자는 결과물에 반드시
     "개발자 : 최감용" 을 명시해 주십시오.
@@ -10,8 +10,8 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="author" content="최감용" />
-<meta name="application-name" content="사업성검토용 설계개요 자동산정 V2.05" />
-<title>사업성검토용 설계개요 자동산정 (공동주택) V2.05 — 개발자: 최감용</title>
+<meta name="application-name" content="사업성검토용 설계개요 자동산정 V2.06" />
+<title>사업성검토용 설계개요 자동산정 (공동주택) V2.06 — 개발자: 최감용</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js" crossorigin></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js" crossorigin></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.26.4/babel.min.js" crossorigin></script>
@@ -129,9 +129,10 @@ const { useState, useMemo, useRef, useEffect } = React;
      · V2.03 (2026-06-13) 모식도 빈 호 제외 — 세대 타입 미입력 호는 모식도·복도/코어당 판정에서 제외(없는 호로 처리).
      · V2.04 (2026-06-13) 호 카드 표현 정리 — 층수 안내를 입력칸 아래로 이동('세대별 별도층수시 입력'), '1층 필로티 선택' 문구, 입력칸·글씨 크기 축소.
      · V2.05 (2026-06-13) 호 카드 레이아웃 정리 — 층수칸·필로티를 세로 배치(겹침/2줄 방지), 라벨 '층수 (세대별 별도 시 입력)'로 축약, 카드 폭 확대.
+     · V2.06 (2026-06-13) 주차 입력 도움말 추가 — 입력06에 접이식 '주차 입력 방법' 표(각 항목·입력법·필수 칸 안내). 산정 로직 불변.
    ════════════════════════════════════════════════════════════════════════ */
 
-const APP_META = { version: 'V2.05', author: '최감용', updated: '2026-06-13' };
+const APP_META = { version: 'V2.06', author: '최감용', updated: '2026-06-13' };
 
 /* ═══════════════════════════════════════════════════════════════
    사업성검토용 설계개요 자동산정 (공동주택)
@@ -799,6 +800,17 @@ const CSS = `
 .fov .unitcard .uclbl{font-size:8.8px;margin-top:0}
 .fov .unitcard .slotmeta{gap:4px;grid-template-columns:minmax(40px,48px) minmax(50px,1fr)}
 .fov .uchint{font-size:8.4px;color:#a59d89;line-height:1.25;margin-top:1px}
+.fov .pkguide{margin:0 0 12px;border:1px solid #e3dcc8;border-radius:7px;background:#fcfbf6;overflow:hidden}
+.fov .pkguide summary{cursor:pointer;padding:8px 12px;font-size:12px;font-weight:800;color:#6b6047;background:#f4efe2;list-style:none}
+.fov .pkguide summary::-webkit-details-marker{display:none}
+.fov .pkguide summary::before{content:'▸ ';color:#9a8f73}
+.fov .pkguide[open] summary::before{content:'▾ '}
+.fov .pkguidetbl{width:100%;border-collapse:collapse;font-size:11.5px}
+.fov .pkguidetbl th,.fov .pkguidetbl td{border:1px solid #e3dcc8;padding:5px 9px;text-align:left;vertical-align:top;line-height:1.45}
+.fov .pkguidetbl thead th{background:#efe9da;font-weight:800;color:#5f5746}
+.fov .pkguidetbl td:first-child{font-weight:700;color:#5f5746;white-space:nowrap;width:150px}
+.fov .pkguidetbl td.hl{color:#9a4036}
+.fov .pkguidenote{padding:8px 12px;font-size:11px;line-height:1.6;color:#6b6047;background:#fbf7e8;border-top:1px solid #e3dcc8}
 .fov .unitcardhd{display:flex;justify-content:space-between;align-items:center;font-size:9.8px;font-weight:800;color:#6b6047}
 .fov .ucdel{border:none;background:#efe7d6;color:#9a4036;border-radius:4px;width:17px;height:17px;line-height:1;cursor:pointer;font-weight:900;font-size:12px;padding:0}
 .fov .ucdel:hover{background:#e6cfc7}
@@ -1766,6 +1778,24 @@ function FeasibilityOverviewCalculator() {
 
 <div className="panel">
               <p className="ptitle"><span className="sectno">입력 06</span><span className="sectbody"><span className="sectlabel">주차 계획</span><span className="pdesc">조례 기준 입력 시 조례 우선, 공란이면 주택건설기준 §27①1 표 적용 (조례는 §27①1 단서로 강화 가능: 기준의 1/5, 60㎡ 이하 1/2 범위)</span></span></p>
+              <details className="pkguide">
+                <summary>📋 주차 입력 방법 — 펼쳐서 보기 (대부분 공란 두면 자동 산정)</summary>
+                <table className="pkguidetbl">
+                  <thead><tr><th>입력 항목</th><th>무엇</th><th>어떻게 입력</th></tr></thead>
+                  <tbody>
+                    <tr><td>주차 지역구분</td><td>§27①1 표의 법정 원단위 지역</td><td><b>자동</b> — 시·군·구 선택 시 설정됨(필요시만 변경)</td></tr>
+                    <tr><td>조례 기준 85㎡ 이하 / 초과</td><td>조례가 법정보다 강화한 ㎡/대</td><td><b>공란이면 법정(영 표) 자동</b> · 조례 강화값이 있을 때만 숫자 입력</td></tr>
+                    <tr><td>조례 산정 방식</td><td>면적당(㎡/대) vs 세대당 구간비율</td><td>대개 <b>면적당</b> 그대로 · 서울 등 세대당 구간조례면 '세대당 비율' 선택</td></tr>
+                    <tr><td>계획 주차원단위</td><td>설계 세대당 대수(대/세대)</td><td>선택 — 입력 시 계획대수 = 세대수×원단위(아래 직접입력을 쓰면 비움)</td></tr>
+                    <tr><td className="hl">계획 주차대수(직접)</td><td>설계 계획 총 주차대수</td><td><b>설계값 직접 입력</b> · 공란이면 법정대수와 동일 처리</td></tr>
+                    <tr><td>지상 주차대수</td><td>지상에 배치하는 대수</td><td>지상 배치분 입력(없으면 0) — 지하주차장 면적 = (계획−지상)×대당면적</td></tr>
+                    <tr><td className="hl">대당 지하주차장 면적</td><td>주차 1대당 ㎡(차로 포함)</td><td>통상 36.5~38 입력(추정치)</td></tr>
+                    <tr><td>장애인전용 주차비율</td><td>부설주차 대비 %</td><td>조례값(보통 2~4%) — 시·군·구 선택 시 자동(있으면)</td></tr>
+                    <tr><td>근생 주차기준</td><td>근린생활시설 ㎡/대</td><td>조례값(보통 134) — 시·군·구 선택 시 자동(있으면)</td></tr>
+                  </tbody>
+                </table>
+                <div className="pkguidenote">법정주차 = ① 면적기준(85㎡↓·↑) ② 세대당 최저 ③ (조례 비율식) 중 <b>가장 큰 값</b>으로 자동 산정됩니다. 노란 칸을 비우면 법정·조례 DB값이 자동 적용되니, <b>실제로 꼭 채울 칸은 「계획 주차대수」와 「대당 지하주차장 면적」 정도</b>입니다.</div>
+              </details>
               <div className="fgrid">
                 <Fld label="주차 지역구분 (§27①1 표)" cls="sp2">
                   <FSel v={asm.region} on={uAsm('region')} w="100%" opts={PARKING_REGIONS.map((r) => ({ value: r.id, label: `${r.label} (1/${r.u85}·1/${r.o85})` }))} />
