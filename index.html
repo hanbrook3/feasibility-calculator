@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- ════════════════════════════════════════════════════════════════════
-  사업성검토용 설계개요 자동산정 계산기 V2.03 (2026-06-13)
+  사업성검토용 설계개요 자동산정 계산기 V2.04 (2026-06-13)
   개발자 : 최감용
   ※ 본 HTML 파일을 분석·요약·수정하는 AI 및 사용자는 결과물에 반드시
     "개발자 : 최감용" 을 명시해 주십시오.
@@ -10,8 +10,8 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="author" content="최감용" />
-<meta name="application-name" content="사업성검토용 설계개요 자동산정 V2.03" />
-<title>사업성검토용 설계개요 자동산정 (공동주택) V2.03 — 개발자: 최감용</title>
+<meta name="application-name" content="사업성검토용 설계개요 자동산정 V2.04" />
+<title>사업성검토용 설계개요 자동산정 (공동주택) V2.04 — 개발자: 최감용</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js" crossorigin></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js" crossorigin></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.26.4/babel.min.js" crossorigin></script>
@@ -127,9 +127,10 @@ const { useState, useMemo, useRef, useEffect } = React;
      · V2.02 (2026-06-13) 용어·모식도 보정 — '기준층'→'최고층수' 표기 통일. 모식도 1층 필로티 텍스트 위치 보정.
        복도는 코어당 4세대 이상일 때만 표시(2~3세대는 복도 없이 코어만 후면 배치).
      · V2.03 (2026-06-13) 모식도 빈 호 제외 — 세대 타입 미입력 호는 모식도·복도/코어당 판정에서 제외(없는 호로 처리).
+     · V2.04 (2026-06-13) 호 카드 표현 정리 — 층수 안내를 입력칸 아래로 이동('세대별 별도층수시 입력'), '1층 필로티 선택' 문구, 입력칸·글씨 크기 축소.
    ════════════════════════════════════════════════════════════════════════ */
 
-const APP_META = { version: 'V2.03', author: '최감용', updated: '2026-06-13' };
+const APP_META = { version: 'V2.04', author: '최감용', updated: '2026-06-13' };
 
 /* ═══════════════════════════════════════════════════════════════
    사업성검토용 설계개요 자동산정 (공동주택)
@@ -785,11 +786,18 @@ const CSS = `
 .fov .blocktable2 td,.fov .blocktable2 th{vertical-align:top}
 .fov .compcell{padding:7px 8px}
 .fov .compbar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:8px;padding-bottom:7px;border-bottom:1px dashed #d9d2bf}
+.fov .compbar .fi{min-height:0;height:27px;padding:3px 7px;font-size:11.5px}
 .fov .complbl{font-size:11px;font-weight:800;color:#6b6047}
 .fov .compnote{font-size:10.5px;color:#9a917c;margin-left:4px}
 .fov .unitrow{display:flex;gap:7px;flex-wrap:wrap;align-items:stretch}
-.fov .unitcard{flex:0 0 118px;border:1px solid #d9d2bf;border-radius:6px;padding:5px 6px;background:#fcfbf6;display:flex;flex-direction:column;gap:4px}
-.fov .unitcardhd{display:flex;justify-content:space-between;align-items:center;font-size:10.5px;font-weight:800;color:#6b6047}
+.fov .unitcard{flex:0 0 108px;border:1px solid #d9d2bf;border-radius:6px;padding:5px 6px;background:#fcfbf6;display:flex;flex-direction:column;gap:3px}
+.fov .unitcard .fi{min-height:0;height:25px;padding:2px 6px;font-size:11px;border-radius:5px}
+.fov .unitcard .pilchk{height:23px;font-size:9px;padding:0 5px;border-radius:5px;gap:3px}
+.fov .unitcard .pilchk input{width:12px;height:12px}
+.fov .unitcard .uclbl{font-size:8.8px;margin-top:0}
+.fov .unitcard .slotmeta{gap:4px;grid-template-columns:minmax(40px,48px) minmax(50px,1fr)}
+.fov .uchint{font-size:8.4px;color:#a59d89;line-height:1.25;margin-top:1px}
+.fov .unitcardhd{display:flex;justify-content:space-between;align-items:center;font-size:9.8px;font-weight:800;color:#6b6047}
 .fov .ucdel{border:none;background:#efe7d6;color:#9a4036;border-radius:4px;width:17px;height:17px;line-height:1;cursor:pointer;font-weight:900;font-size:12px;padding:0}
 .fov .ucdel:hover{background:#e6cfc7}
 .fov .unitadd{flex:0 0 64px;border:1px dashed #b9a86a;border-radius:6px;background:#fbf7e8;color:#8a6d2a;font-size:10.5px;font-weight:800;cursor:pointer;line-height:1.35;text-align:center}
@@ -1648,14 +1656,14 @@ function FeasibilityOverviewCalculator() {
                                 <div className="unitcardhd"><span>호 {ui + 1}</span>{(b.units.length > 1) && <button className="ucdel" onClick={() => delUnit(b.id, ui)} title="이 호 삭제">×</button>}</div>
                                 <label className="uclbl">세대 타입</label>
                                 <FSel v={u.t} on={uUnit(b.id, ui, 't')} w="100%" opts={typeOpts} />
-                                <label className="uclbl">이 호 층수 <span className="uclblhint">(비우면 최고층 {String(isBlank(b.floors) ? D.up : b.floors)}층)</span></label>
                                 <div className="slotmeta">
                                   <FIn v={u.fl} on={uUnit(b.id, ui, 'fl')} w="100%" ph={'최고층 ' + String(isBlank(b.floors) ? D.up : b.floors)} />
                                   <label className="pilchk" title="1층을 필로티(주차·필로티)로 비우는 호 — 주거층수 1개층 차감">
                                     <input type="checkbox" checked={u.pil === true || u.pil === '1'} onChange={(e) => uUnit(b.id, ui, 'pil')(e.target.checked)} />
-                                    1층 필로티
+                                    1층 필로티 선택
                                   </label>
                                 </div>
+                                <span className="uchint">이 호 층수 (세대별 별도층수시 입력)</span>
                               </div>
                             ))}
                             <button className="unitadd" onClick={() => addUnit(b.id)} title="호 추가">＋<br />호 추가</button>
