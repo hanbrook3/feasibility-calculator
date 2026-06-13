@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- ════════════════════════════════════════════════════════════════════
-  사업성검토용 설계개요 자동산정 계산기 V2.08 (2026-06-13)
+  사업성검토용 설계개요 자동산정 계산기 V2.09 (2026-06-13)
   개발자 : 최감용
   ※ 본 HTML 파일을 분석·요약·수정하는 AI 및 사용자는 결과물에 반드시
     "개발자 : 최감용" 을 명시해 주십시오.
@@ -10,8 +10,8 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="author" content="최감용" />
-<meta name="application-name" content="사업성검토용 설계개요 자동산정 V2.08" />
-<title>사업성검토용 설계개요 자동산정 (공동주택) V2.08 — 개발자: 최감용</title>
+<meta name="application-name" content="사업성검토용 설계개요 자동산정 V2.09" />
+<title>사업성검토용 설계개요 자동산정 (공동주택) V2.09 — 개발자: 최감용</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js" crossorigin></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js" crossorigin></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.26.4/babel.min.js" crossorigin></script>
@@ -132,9 +132,10 @@ const { useState, useMemo, useRef, useEffect } = React;
      · V2.06 (2026-06-13) 주차 입력 도움말 추가 — 입력06에 접이식 '주차 입력 방법' 표(각 항목·입력법·필수 칸 안내). 산정 로직 불변.
      · V2.07 (2026-06-13) 입력 순서·세대수 보정 — 세대 타입(입력04)을 동 구성(입력05) 앞으로 이동. 세대수 칸에 동구성 산출값 표시·행별 '적용' 보정 버튼 추가.
      · V2.08 (2026-06-13) 세대 타입표 폭 확대(글씨 밀림 해소)·세대수 칸 안내문구('미기입 시 동구성 자동산출') 추가.
+     · V2.09 (2026-06-13) 주민공동시설 정리 — 입력08 '조례 기준' 칼럼 삭제(§55의2⑤ 가이드라인 산식 자동표시). 계획 칸 placeholder에 법정값('법정 N 자동') 표시. §55의2③ 의무시설 6종(150·300·500세대) 현행 일치 확인.
    ════════════════════════════════════════════════════════════════════════ */
 
-const APP_META = { version: 'V2.08', author: '최감용', updated: '2026-06-13' };
+const APP_META = { version: 'V2.09', author: '최감용', updated: '2026-06-13' };
 
 /* ═══════════════════════════════════════════════════════════════
    사업성검토용 설계개요 자동산정 (공동주택)
@@ -1326,29 +1327,26 @@ function FeasibilityOverviewCalculator() {
 
     /* ── 주민공동시설 (§55의2 총량제 — 조례 입력 시 조례 우선, 공란이면 규정 산식) ── */
     const commLegalStat = N >= 100 ? (N < 1000 ? 2.5 * N : 500 + 2 * N) : 0;
-    const commOrd = !isBlank(asm.commLegalOrd);
-    const commLegal = commOrd ? toNum(asm.commLegalOrd, 0) : commLegalStat;
-    /* 시설별 법정: 조례 입력 시 조례 우선(공란 = 가이드라인 산식, §55의2⑥) · 계획 공란 = 법정값 자동 적용 */
+    const commLegal = commLegalStat;  /* §55의2① 규정 산식 (조례 ±1/4 강화·완화는 별도 확인필요) */
+    const commOrd = false;  /* 조례 총량 입력 제거 — 규정 산식 사용 */
+    /* 시설별 법정 세부면적(§55의2⑤ 가이드라인 산식) · 계획 공란 = 법정값 자동 적용 */
     const facCalc = FACILITIES.map((f) => {
       const required = N >= f.th;
-      const ordRaw = (asm.facOrd || {})[f.key];
-      const gOrd = required && !isBlank(ordRaw);
-      const g = required ? (gOrd ? toNum(ordRaw, 0) : f.guide(N)) : null;
+      const g = required ? f.guide(N) : null;
       const planRaw = (asm.fac || {})[f.key];
       const planAuto = isBlank(planRaw);
       const plan = planAuto ? (required && g > 0 ? Math.ceil(g) : 0) : toNum(planRaw, 0);
       const loc2 = f.loc === '옥내' ? ((asm.facLoc || {})[f.key] || '지상') : '부지';
-      return { ...f, required, g, gOrd, gtext: required ? (gOrd ? `조례 ${fmt(g, 1)}` : f.gtxt(N)) : '해당 없음', plan, planAuto, loc2 };
+      return { ...f, required, g, gtext: required ? f.gtxt(N) : '해당 없음', plan, planAuto, loc2 };
     });
-    /* 조례 추가 주민공동시설(§55의2④) — ③항 시설 외에 조례로 따로 정하는 세대수별 종류 */
+    /* 조례 추가 주민공동시설(§55의2④) — ③항 시설 외에 조례로 따로 정하는 세대수별 종류(계획 면적 직접 입력) */
     const extraCalc = (asm.extraFacs || []).map((x) => {
       const hasTh = !isBlank(x.th);
       const thN = toNum(x.th, 0);
       const required = hasTh ? N >= thN : null; /* null = 임의(계획) 시설 */
-      const ordA = toNum(x.area, 0);
       const planAuto = isBlank(x.plan);
-      const plan = planAuto ? (required === true && ordA > 0 ? Math.ceil(ordA) : 0) : toNum(x.plan, 0);
-      return { ...x, hasTh, thN, required, ordA, plan, planAuto, loc: x.loc || '지상' };
+      const plan = planAuto ? 0 : toNum(x.plan, 0);
+      return { ...x, hasTh, thN, required, plan, planAuto, loc: x.loc || '지상' };
     });
     const extraIn = extraCalc.filter((x) => x.loc !== '옥외');
     const commIndoor = facCalc.filter((f) => f.loc === '옥내').reduce((s, f) => s + f.plan, 0) + extraIn.reduce((s, x) => s + x.plan, 0); /* 연면적 산입 대상 */
@@ -1858,7 +1856,7 @@ function FeasibilityOverviewCalculator() {
                 <tbody>
                   <tr>
                     <th>관리사무소</th>
-                    <td><FIn v={asm.mgmt} on={uAsm('mgmt')} w="100%" ph="자동" /></td>
+                    <td><FIn v={asm.mgmt} on={uAsm('mgmt')} w="100%" ph={D.mgmtLegal > 0 ? `법정 ${Math.ceil(D.mgmtLegal)} 자동` : '자동'} /></td>
                     <td><FSel v={asm.mgmtLoc} on={uAsm('mgmtLoc')} w="100%" opts={[{ value: '지하', label: '지하' }, { value: '지상', label: '지상' }]} /></td>
                     <td className="ctr nt">법정 {D.N >= 50 ? `${fmt(D.mgmtLegal, 2)}㎡ (§28①)` : '의무 없음(50세대 미만)'}</td>
                   </tr>
@@ -1902,18 +1900,17 @@ function FeasibilityOverviewCalculator() {
             </div>
 
 <div className="panel wide">
-              <p className="ptitle"><span className="sectno">입력 08</span><span className="sectbody"><span className="sectlabel">주민공동시설 — §55의2</span><span className="pdesc">법정 세부면적: 조례 입력 시 조례 우선(공란 = 총량제 가이드라인 산식) · 계획 공란 = 법정값 자동 적용 · 옥외시설은 부지면적(연면적 미산입)</span></span></p>
+              <p className="ptitle"><span className="sectno">입력 08</span><span className="sectbody"><span className="sectlabel">주민공동시설 — §55의2</span><span className="pdesc">법정 세부면적(§55의2⑤ 가이드라인 산식) 자동 표시 · 계획 공란 = 법정값 자동 적용 · 옥외시설은 부지면적(연면적 미산입) · 시설 종류는 §55의2③ 기준(150·300·500세대)</span></span></p>
               <table className="g ttable" style={{ maxWidth: 1060, border: '1px solid #a89e87' }}>
-                <colgroup><col style={{ width: '12%' }} /><col style={{ width: '11%' }} /><col style={{ width: '14%' }} /><col style={{ width: '24%' }} /><col style={{ width: '14%' }} /><col style={{ width: '10%' }} /><col style={{ width: '15%' }} /></colgroup>
-                <thead><tr><th>시 설</th><th>의무 기준</th><th>조례 기준 (㎡)</th><th>법정 적용값 (산식)</th><th>계획 (㎡)</th><th>위치</th><th>비 고</th></tr></thead>
+                <colgroup><col style={{ width: '14%' }} /><col style={{ width: '13%' }} /><col style={{ width: '30%' }} /><col style={{ width: '16%' }} /><col style={{ width: '11%' }} /><col style={{ width: '16%' }} /></colgroup>
+                <thead><tr><th>시 설</th><th>의무 기준</th><th>법정 적용값 (산식)</th><th>계획 (㎡)</th><th>위치</th><th>비 고</th></tr></thead>
                 <tbody>
                   {D.facCalc.map((f) => (
                     <tr key={'p8' + f.key}>
                       <th style={{ fontWeight: 600 }}>{f.name}</th>
                       <td className="ctr nt">{f.th}세대 이상{f.required ? '' : ' · 미해당'}</td>
-                      <td><FIn v={(asm.facOrd || {})[f.key] || ''} on={uFacOrd(f.key)} w="100%" ph="조례 우선" /></td>
                       <td className="ctr lim">{f.gtext}</td>
-                      <td>{f.required ? <FIn v={(asm.fac || {})[f.key] || ''} on={uFac(f.key)} w="100%" ph={f.g > 0 ? `자동 ${Math.ceil(f.g)}` : '0'} /> : <div className="ctr nt">—</div>}</td>
+                      <td>{f.required ? <FIn v={(asm.fac || {})[f.key] || ''} on={uFac(f.key)} w="100%" num={false} ph={f.g > 0 ? `법정 ${Math.ceil(f.g)} 자동` : '0'} /> : <div className="ctr nt">—</div>}</td>
                       <td className="ctr">{f.loc === '옥외' ? <span className="nt">부지</span> : <FSel v={(asm.facLoc || {})[f.key] || '지상'} on={uFacLoc(f.key)} w="100%" opts={[{ value: '지상', label: '지상' }, { value: '지하', label: '지하' }]} />}</td>
                       <td className="ctr nt">{f.loc}{f.required && f.planAuto && f.g > 0 ? ' · 법정값 자동' : ''}</td>
                     </tr>
@@ -1922,25 +1919,22 @@ function FeasibilityOverviewCalculator() {
                     <tr key={'xf' + x.id}>
                       <th style={{ fontWeight: 600 }}><FIn v={x.name} on={uExtraFac(x.id, 'name')} w="100%" num={false} ph="주민공동시설" /></th>
                       <td className="ctr nt" style={{ whiteSpace: 'nowrap' }}><FIn v={x.th} on={uExtraFac(x.id, 'th')} w={46} ph="조례" /> 세대↑</td>
-                      <td><FIn v={x.area} on={uExtraFac(x.id, 'area')} w="100%" ph="조례 면적" /></td>
-                      <td className="ctr lim">{x.hasTh ? (x.required ? `조례 ${fmt(x.ordA, 1)} — §55의2④` : '미해당') : '임의(계획) 시설'}</td>
-                      <td><FIn v={x.plan} on={uExtraFac(x.id, 'plan')} w="100%" ph={x.required === true && x.ordA > 0 ? `자동 ${Math.ceil(x.ordA)}` : '0'} /></td>
+                      <td className="ctr lim">{x.hasTh ? (x.required ? '필수(§55의2④) — 계획 입력' : '미해당') : '임의(계획) 시설'}</td>
+                      <td><FIn v={x.plan} on={uExtraFac(x.id, 'plan')} w="100%" num={false} ph="계획 면적" /></td>
                       <td className="ctr"><FSel v={x.loc} on={uExtraFac(x.id, 'loc')} w="100%" opts={[{ value: '지상', label: '지상' }, { value: '지하', label: '지하' }, { value: '옥외', label: '옥외(부지)' }]} /></td>
                       <td className="ctr nt" style={{ whiteSpace: 'nowrap' }}>
-                        {x.required === true && x.planAuto && x.ordA > 0 ? '법정값 자동 ' : ''}
-                        <button className="icb add" onClick={() => insertExtraFacAfter(x.id)} title="조례 추가 시설 행 삽입 (§55의2④)">＋</button>
+                                                <button className="icb add" onClick={() => insertExtraFacAfter(x.id)} title="조례 추가 시설 행 삽입 (§55의2④)">＋</button>
                         <button className="icb del" onClick={() => delExtraFac(x.id)} title="조례 추가 시설 행 삭제 (Ctrl+Z로 되돌리기)">−</button>
                       </td>
                     </tr>
                   ))}
                   {D.extraCalc.length === 0 && (
-                    <tr><td colSpan={7} className="ctr"><button className="btn" onClick={() => insertExtraFacAfter(null)}>＋ 조례 추가 주민공동시설 행 추가 (§55의2④)</button></td></tr>
+                    <tr><td colSpan={6} className="ctr"><button className="btn" onClick={() => insertExtraFacAfter(null)}>＋ 조례 추가 주민공동시설 행 추가 (§55의2④)</button></td></tr>
                   )}
                   <tr className="sumrow">
                     <th>총량 (§55의2①)</th>
                     <td className="ctr nt">100세대 이상</td>
-                    <td><FIn v={asm.commLegalOrd} on={uAsm('commLegalOrd')} w="100%" ph="조례 우선" /></td>
-                    <td className="ctr lim">{D.N >= 100 || D.commOrd ? `${D.commOrd ? '조례' : '규정'} ${fmt(D.commLegal, 1)}㎡ 이상` : '100세대 미만 — 의무 없음'}</td>
+                    <td className="ctr lim">{D.N >= 100 ? `규정 ${fmt(D.commLegal, 1)}㎡ 이상` : '100세대 미만 — 의무 없음'}</td>
                     <td className="num"><b>{fmt(D.commPlanTotal, 1)}</b></td>
                     <td colSpan={2} className="ctr nt">옥내 {fmt(D.commIndoor, 1)} · 옥외 {fmt(D.commOutdoor, 1)} <Badge ok={D.jComm} no="부족" /></td>
                   </tr>
