@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- ════════════════════════════════════════════════════════════════════
-  사업성검토용 설계개요 자동산정 계산기 V2.01 (2026-06-13)
+  사업성검토용 설계개요 자동산정 계산기 V2.02 (2026-06-13)
   개발자 : 최감용
   ※ 본 HTML 파일을 분석·요약·수정하는 AI 및 사용자는 결과물에 반드시
     "개발자 : 최감용" 을 명시해 주십시오.
@@ -10,8 +10,8 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="author" content="최감용" />
-<meta name="application-name" content="사업성검토용 설계개요 자동산정 V2.01" />
-<title>사업성검토용 설계개요 자동산정 (공동주택) V2.01 — 개발자: 최감용</title>
+<meta name="application-name" content="사업성검토용 설계개요 자동산정 V2.02" />
+<title>사업성검토용 설계개요 자동산정 (공동주택) V2.02 — 개발자: 최감용</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js" crossorigin></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js" crossorigin></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.26.4/babel.min.js" crossorigin></script>
@@ -124,9 +124,11 @@ const { useState, useMemo, useRef, useEffect } = React;
        지원. 호 추가/삭제·코어 1~2개 선택. 기존 프리셋은 자동 정규화(산정 로직·결과 불변).
      · V2.01 (2026-06-13) 동타입 입력·모식도 개선 — 호 카드에 '세대 타입/이 호 층수(비우면 기준층)/
        1층 필로티' 라벨 추가(이해도). 코어 1~6개 선택 확대. 모식도 코어를 세대 옆→후면(복도 띠) 배치.
+     · V2.02 (2026-06-13) 용어·모식도 보정 — '기준층'→'최고층수' 표기 통일. 모식도 1층 필로티 텍스트 위치 보정.
+       복도는 코어당 4세대 이상일 때만 표시(2~3세대는 복도 없이 코어만 후면 배치).
    ════════════════════════════════════════════════════════════════════════ */
 
-const APP_META = { version: 'V2.01', author: '최감용', updated: '2026-06-13' };
+const APP_META = { version: 'V2.02', author: '최감용', updated: '2026-06-13' };
 
 /* ═══════════════════════════════════════════════════════════════
    사업성검토용 설계개요 자동산정 (공동주택)
@@ -589,7 +591,7 @@ const TYPE_PAL = [
 ];
 
 function DongDiagram({ b, bi, types, cores, info, compact = false }) {
-  const UH = 44, CH = 18, BOT = 18, TOPLBL = 16, SC = 0.85;
+  const UH = 44, CH = 18, BOT = 24, TOPLBL = 16, SC = 0.85;
   const find = (sid) => { const i = types.findIndex((t) => String(t.id) === String(sid)); return i >= 0 ? { t: types[i], pal: TYPE_PAL[i % TYPE_PAL.length] } : null; };
   const coreObj = (k) => cores.find((c) => c.k === k) || null;
   const uw = (sid) => { const f = find(sid); return f ? Math.max(56, (parseFloat(f.t.area) || 0) * SC) : 56; };
@@ -605,11 +607,13 @@ function DongDiagram({ b, bi, types, cores, info, compact = false }) {
   if (units.length === 0) hx = 120;
   const corrW = hx - 1;
   const W = Math.ceil(hx + 1);
+  const perCore = nc > 0 ? units.length / nc : units.length;
+  const hasCorridor = perCore >= 4;   /* 코어당 4세대 이상이면 복도형 — 후면 복도 표현 */
   const H = TOPLBL + CH + UH + BOT;
-  const corrY = TOPLBL;            /* 복도·코어 띠 상단 */
+  const corrY = TOPLBL;            /* 코어(·복도) 띠 상단 */
   const gy = TOPLBL + CH;          /* 세대 박스 상단 */
   const assignedHomes = units.filter((u) => !isBlank(u.t)).length;
-  const comboName = `${assignedHomes || units.length}호` + `·코어${nc}` + (nc >= 2 && units.length > nc * 2 ? '·복도형' : (units.length > 2 ? '·복도형' : ''));
+  const comboName = `${assignedHomes || units.length}호` + `·코어${nc}` + (hasCorridor ? '·복도형' : '');
 
   /* 코어 박스: 세대열 폭을 nc등분한 각 구간 중앙에 배치 */
   const CBW = Math.max(30, Math.min(48, corrW / Math.max(nc, 1) * 0.5));
@@ -621,7 +625,7 @@ function DongDiagram({ b, bi, types, cores, info, compact = false }) {
       {pil && (<g opacity="0.85"><line x1={x + 1.5} y1={y + 1.5} x2={x + w - 1.5} y2={y + h - 1.5} stroke="#9a4036" strokeWidth="1.2" /><line x1={x + w - 1.5} y1={y + 1.5} x2={x + 1.5} y2={y + h - 1.5} stroke="#9a4036" strokeWidth="1.2" /></g>)}
       <text x={x + w / 2} y={y + h / 2 + 2} textAnchor="middle" fontSize="13" fontWeight="900" fill="#1f1f1f">{floorFull ? `${floorFull}F` : (flv ? `${flv}F` : '')}</text>
       <text x={x + w - 5} y={y + h - 6} textAnchor="end" fontSize="9.4" fontWeight="900" fill="#3d3526">{f.t.name || '타입'}</text>
-      {pil && <text x={x + w / 2} y={y + h + 10} textAnchor="middle" fontSize="8.2" fontWeight="900" fill="#9a4036">1층 필로티</text>}
+      {pil && <text x={x + w / 2} y={y + h + 13} textAnchor="middle" fontSize="8.2" fontWeight="900" fill="#9a4036">1층 필로티</text>}
     </g>
   ) : (
     <g><rect x={x} y={y} width={w} height={h} fill="#fbf9f1" stroke="#b9b09a" strokeWidth="1" strokeDasharray="4 3" /><text x={x + w / 2} y={y + h / 2 + 3.5} textAnchor="middle" fontSize="9.5" fill="#a59d89">호</text></g>
@@ -638,9 +642,9 @@ function DongDiagram({ b, bi, types, cores, info, compact = false }) {
       )}
       <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} overflow="visible" role="img" aria-label={`동타입${String.fromCharCode(65 + bi)} 평면 모식도`}>
         <defs><pattern id={`hat${b.id}`} width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="5" height="5" fill="#f4f1e7" /><line x1="0" y1="0" x2="0" y2="5" stroke="#a89e87" strokeWidth="1.1" /></pattern></defs>
-        {/* 후면 복도 띠 (세대 뒤) */}
-        <rect x={1} y={corrY} width={corrW} height={CH} fill="#efe9da" stroke="#cdc4ac" strokeWidth="1" />
-        <text x={4} y={corrY + CH / 2 + 3} fontSize="7.6" fontWeight="700" fill="#9a917c">복도</text>
+        {/* 후면 복도 띠 (코어당 4세대 이상 = 복도형일 때만) */}
+        {hasCorridor && <rect x={1} y={corrY} width={corrW} height={CH} fill="#efe9da" stroke="#cdc4ac" strokeWidth="1" />}
+        {hasCorridor && <text x={4} y={corrY + CH / 2 + 3} fontSize="7.6" fontWeight="700" fill="#9a917c">복도</text>}
         {/* 코어 박스 (복도 띠 위에 겹쳐, 세대 후면) */}
         {coreBoxes.map((cb, i) => { const c = coreObj(cb.k); return (
           <g key={'core' + i}>
@@ -1616,7 +1620,7 @@ function FeasibilityOverviewCalculator() {
                 </colgroup>
                 <thead>
                   <tr>
-                    <th title="≡ 드래그로 순서 이동">≡</th><th>동타입</th><th>구성 (코어 · 호) <span className="thhint">각 호: 타입 · 층수 · 필로티 · 호 추가/삭제</span></th><th>기준층</th><th>+ / −</th>
+                    <th title="≡ 드래그로 순서 이동">≡</th><th>동타입</th><th>구성 (코어 · 호) <span className="thhint">각 호: 타입 · 층수 · 필로티 · 호 추가/삭제</span></th><th>최고층수</th><th>+ / −</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1643,9 +1647,9 @@ function FeasibilityOverviewCalculator() {
                                 <div className="unitcardhd"><span>호 {ui + 1}</span>{(b.units.length > 1) && <button className="ucdel" onClick={() => delUnit(b.id, ui)} title="이 호 삭제">×</button>}</div>
                                 <label className="uclbl">세대 타입</label>
                                 <FSel v={u.t} on={uUnit(b.id, ui, 't')} w="100%" opts={typeOpts} />
-                                <label className="uclbl">이 호 층수 <span className="uclblhint">(비우면 기준층 {String(isBlank(b.floors) ? D.up : b.floors)}층)</span></label>
+                                <label className="uclbl">이 호 층수 <span className="uclblhint">(비우면 최고층 {String(isBlank(b.floors) ? D.up : b.floors)}층)</span></label>
                                 <div className="slotmeta">
-                                  <FIn v={u.fl} on={uUnit(b.id, ui, 'fl')} w="100%" ph={'기준층 ' + String(isBlank(b.floors) ? D.up : b.floors)} />
+                                  <FIn v={u.fl} on={uUnit(b.id, ui, 'fl')} w="100%" ph={'최고층 ' + String(isBlank(b.floors) ? D.up : b.floors)} />
                                   <label className="pilchk" title="1층을 필로티(주차·필로티)로 비우는 호 — 주거층수 1개층 차감">
                                     <input type="checkbox" checked={u.pil === true || u.pil === '1'} onChange={(e) => uUnit(b.id, ui, 'pil')(e.target.checked)} />
                                     1층 필로티
@@ -1670,7 +1674,7 @@ function FeasibilityOverviewCalculator() {
                 <button className="btn" onClick={addBlock}><Plus size={14} /> 동타입 추가</button>
               </div>
 
-              <div className="nt" style={{ marginTop: 4 }}>※ <b>호</b> = 한 라인(세로로 쌓인 세대). 각 호에 <b>세대 타입</b>·<b>층수</b>(그 라인이 몇 개 층인지 · 비우면 기준층 적용)·<b>1층 필로티</b> 여부를 입력합니다. 예) 39층이면 그 라인에 39세대가 쌓이고, 1층 필로티면 주거 38세대. 코어는 여러 개 선택 가능(복도형).</div>
+              <div className="nt" style={{ marginTop: 4 }}>※ <b>호</b> = 한 라인(세로로 쌓인 세대). 각 호에 <b>세대 타입</b>·<b>층수</b>(그 라인이 몇 개 층인지 · 비우면 최고층 적용)·<b>1층 필로티</b> 여부를 입력합니다. 예) 39층이면 그 라인에 39세대가 쌓이고, 1층 필로티면 주거 38세대. 코어는 여러 개 선택 가능(복도형).</div>
               <div className="ttl2" style={{ marginTop: 14 }}>■ 동타입별 동수구성</div>
               <table className="g ttable configtable" style={{ maxWidth: 1140, border: '1px solid #a89e87' }}>
                 <colgroup>
