@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- ════════════════════════════════════════════════════════════════════
-  사업성검토용 설계개요 자동산정 계산기 V2.02 (2026-06-13)
+  사업성검토용 설계개요 자동산정 계산기 V2.03 (2026-06-13)
   개발자 : 최감용
   ※ 본 HTML 파일을 분석·요약·수정하는 AI 및 사용자는 결과물에 반드시
     "개발자 : 최감용" 을 명시해 주십시오.
@@ -10,8 +10,8 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="author" content="최감용" />
-<meta name="application-name" content="사업성검토용 설계개요 자동산정 V2.02" />
-<title>사업성검토용 설계개요 자동산정 (공동주택) V2.02 — 개발자: 최감용</title>
+<meta name="application-name" content="사업성검토용 설계개요 자동산정 V2.03" />
+<title>사업성검토용 설계개요 자동산정 (공동주택) V2.03 — 개발자: 최감용</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js" crossorigin></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js" crossorigin></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.26.4/babel.min.js" crossorigin></script>
@@ -126,9 +126,10 @@ const { useState, useMemo, useRef, useEffect } = React;
        1층 필로티' 라벨 추가(이해도). 코어 1~6개 선택 확대. 모식도 코어를 세대 옆→후면(복도 띠) 배치.
      · V2.02 (2026-06-13) 용어·모식도 보정 — '기준층'→'최고층수' 표기 통일. 모식도 1층 필로티 텍스트 위치 보정.
        복도는 코어당 4세대 이상일 때만 표시(2~3세대는 복도 없이 코어만 후면 배치).
+     · V2.03 (2026-06-13) 모식도 빈 호 제외 — 세대 타입 미입력 호는 모식도·복도/코어당 판정에서 제외(없는 호로 처리).
    ════════════════════════════════════════════════════════════════════════ */
 
-const APP_META = { version: 'V2.02', author: '최감용', updated: '2026-06-13' };
+const APP_META = { version: 'V2.03', author: '최감용', updated: '2026-06-13' };
 
 /* ═══════════════════════════════════════════════════════════════
    사업성검토용 설계개요 자동산정 (공동주택)
@@ -595,7 +596,7 @@ function DongDiagram({ b, bi, types, cores, info, compact = false }) {
   const find = (sid) => { const i = types.findIndex((t) => String(t.id) === String(sid)); return i >= 0 ? { t: types[i], pal: TYPE_PAL[i % TYPE_PAL.length] } : null; };
   const coreObj = (k) => cores.find((c) => c.k === k) || null;
   const uw = (sid) => { const f = find(sid); return f ? Math.max(56, (parseFloat(f.t.area) || 0) * SC) : 56; };
-  const units = b.units || [];
+  const units = (b.units || []).filter((u) => !isBlank(u.t));  /* 세대 타입 미입력 호는 없는 것으로 — 모식도·복도 판정 제외 */
   const coreKeys = (b.cores && b.cores.length ? b.cores : ['A']);
   const nc = coreKeys.length;
   const floorOf = (u) => String(toNum(u.fl, toNum(b.floors, 0)) || toNum(b.floors, 0) || '');
