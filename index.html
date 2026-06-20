@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- ════════════════════════════════════════════════════════════════════
-  사업성검토용 설계개요 자동산정 계산기 V2.11 (2026-06-15)
+  사업성검토용 설계개요 자동산정 계산기 V2.12 (2026-06-15)
   개발자 : 최감용
   ※ 본 HTML 파일을 분석·요약·수정하는 AI 및 사용자는 결과물에 반드시
     "개발자 : 최감용" 을 명시해 주십시오.
@@ -10,8 +10,8 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="author" content="최감용" />
-<meta name="application-name" content="사업성검토용 설계개요 자동산정 V2.11" />
-<title>사업성검토용 설계개요 자동산정 (공동주택) V2.11 — 개발자: 최감용</title>
+<meta name="application-name" content="사업성검토용 설계개요 자동산정 V2.12" />
+<title>사업성검토용 설계개요 자동산정 (공동주택) V2.12 — 개발자: 최감용</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js" crossorigin></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js" crossorigin></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.26.4/babel.min.js" crossorigin></script>
@@ -135,9 +135,10 @@ const { useState, useMemo, useRef, useEffect } = React;
      · V2.09 (2026-06-13) 주민공동시설 정리 — 입력08 '조례 기준' 칼럼 삭제(§55의2⑤ 가이드라인 산식 자동표시). 계획 칸 placeholder에 법정값('법정 N 자동') 표시. §55의2③ 의무시설 6종(150·300·500세대) 현행 일치 확인.
      · V2.10 (2026-06-15) 조례 DB 건폐율·용적률 전수 재검증 — 법제처 자치법규 기준 161개 시·군·구 도시계획(군계획)조례 시행일 전수 대조(불일치 0건, 값 변경 없음). 광역시·세종·울산·과천 10곳 조문·별표 직접 정독 일치. 확인일(chk) 2026-06-15 갱신. 칠곡군 용도지역 건폐율·용적률 조례 미명시 확인(공백 유지). 주차·조경 별표는 과천시 주차장조례 별표2 정독 검증 + 경기 시·군 주차장·건축조례 시행일 대조(불일치 0); 경기 외 지역은 차기. 산정 로직 변경 없음.
      · V2.11 (2026-06-15) 주차·조경 조례 전수 재검증 완료 — 전국 주차장조례 91곳·건축조례(조경) 76곳 시행일 대조(불일치 0). 과천·여수 별표 직접 정독으로 주차원단위 일치 확인. 광역시 4곳(부산·대구·인천·광주)은 주차기준 자치구 위임으로 확인필요 표기. 산정 로직 변경 없음.
+     · V2.12 (2026-06-15) UI/UX 개선(디자인 비평 반영) — 상단 툴바 파일/작업/출력 그룹 구분선, 보조텍스트 대비 상향(--subtle AA 충족)·입력칸/버튼 포커스 링 강화(키보드 접근성), 입력 안내 범례 줄간격 컴팩트, KPI 라벨 위계 정리. 차분한 실무 톤·표 정렬·산정 로직 모두 불변.
    ════════════════════════════════════════════════════════════════════════ */
 
-const APP_META = { version: 'V2.11', author: '최감용', updated: '2026-06-15' };
+const APP_META = { version: 'V2.12', author: '최감용', updated: '2026-06-15' };
 
 /* ═══════════════════════════════════════════════════════════════
    사업성검토용 설계개요 자동산정 (공동주택)
@@ -772,7 +773,7 @@ const CSS = `
 .fov .pchk input{width:11px;height:11px;margin:0;accent-color:#8a6d3b}
 .fov .blocktable{table-layout:fixed}
 .fov .blocktable td,.fov .blocktable th{vertical-align:middle}
-.fov .blocktable .thhint{display:block;margin-top:2px;font-size:9px;font-weight:600;line-height:1.15;color:#8b826d;white-space:nowrap;letter-spacing:0}
+.fov .blocktable .thhint{display:block;margin-top:2px;font-size:9px;font-weight:600;line-height:1.15;color:#736b57;white-space:nowrap;letter-spacing:0}
 .fov .blocktable select.fi{width:100%!important;min-height:34px;padding:4px 8px;font-size:12px}
 .fov .blocktable input.fi{width:100%!important;min-height:30px;padding:4px 6px;text-align:center;font-size:12px}
 .fov .comboctl{display:grid;gap:5px;align-content:center}
@@ -804,7 +805,7 @@ const CSS = `
 .fov .unitcard .pilchk input{width:12px;height:12px}
 .fov .unitcard .uclbl{font-size:8.8px;margin-top:0}
 .fov .unitcard .slotmeta{gap:4px;grid-template-columns:minmax(40px,48px) minmax(50px,1fr)}
-.fov .uchint{font-size:8.4px;color:#a59d89;line-height:1.25;margin-top:1px}
+.fov .uchint{font-size:8.4px;color:#7a7460;line-height:1.25;margin-top:1px}
 .fov .pkguide{margin:0 0 12px;border:1px solid #e3dcc8;border-radius:7px;background:#fcfbf6;overflow:hidden}
 .fov .pkguide summary{cursor:pointer;padding:8px 12px;font-size:12px;font-weight:800;color:#6b6047;background:#f4efe2;list-style:none}
 .fov .pkguide summary::-webkit-details-marker{display:none}
@@ -826,7 +827,7 @@ const CSS = `
 .fov .unitadd{flex:0 0 64px;border:1px dashed #b9a86a;border-radius:6px;background:#fbf7e8;color:#8a6d2a;font-size:10.5px;font-weight:800;cursor:pointer;line-height:1.35;text-align:center}
 .fov .unitadd:hover{background:#f3ead0}
 .fov .uclbl{font-size:9.5px;font-weight:800;color:#7a7058;margin-top:1px;line-height:1.2}
-.fov .uclblhint{font-weight:600;color:#a59d89}
+.fov .uclblhint{font-weight:600;color:#7a7460}
 
 .fov .configsummary{text-align:left;padding:6px 8px!important}
 .fov .dginrow{display:block;width:max-content;max-width:100%;padding:0;background:transparent;border:0;border-left:0;border-radius:0;box-shadow:none;overflow:visible}
@@ -867,7 +868,7 @@ const CSS = `
   --line-strong:#596252;
   --text:#232820;
   --muted:#657060;
-  --subtle:#8b9587;
+  --subtle:#69735f;
   --primary:#2453a6;
   --primary-strong:#173f80;
   --input:#fff8d7;
@@ -892,7 +893,7 @@ const CSS = `
 .fov .headstats{display:grid;grid-template-columns:repeat(5,minmax(128px,1fr));border-top:1px solid var(--line);background:var(--surface-soft)}
 .fov .headstat{min-width:0;padding:11px 14px;border-left:1px solid var(--line)}
 .fov .headstat:first-child{border-left:none}
-.fov .headstat span{display:block;font-size:10.5px;font-weight:900;color:var(--subtle);letter-spacing:.06em;margin-bottom:3px}
+.fov .headstat span{display:block;font-size:11px;font-weight:900;color:var(--subtle);letter-spacing:.05em;margin-bottom:3px}
 .fov .headstat b{display:block;font-size:16px;line-height:1.25;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fov .headstat small{display:block;margin-top:3px;font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fov .headstat.pass b{color:var(--ok)}
@@ -917,7 +918,7 @@ const CSS = `
 .fov .guidebox{border:1px solid var(--line);border-left:5px solid var(--primary);border-radius:8px;background:#fff;box-shadow:0 5px 18px rgba(38,48,34,.06)}
 .fov .guidehd{background:var(--surface-soft);color:#2f382d;padding:10px 14px;border-bottom:1px solid var(--line)}
 .fov .gicon{background:var(--primary)}
-.fov .guidebody{color:#4d584b;line-height:1.85}
+.fov .guidebody{color:#445040;line-height:1.55}
 .fov .gchip{border-radius:4px}
 .fov .gchip.gy{background:var(--input);border-color:var(--input-border);color:#66530c}
 .fov .gchip.gw{background:#fff;border-color:var(--line);color:var(--muted)}
@@ -932,7 +933,7 @@ const CSS = `
 .fov .fi{min-height:32px;border:1px solid var(--input-border);background:var(--input);border-radius:6px;padding:5px 8px;color:var(--text)}
 .fov select.fi{background:var(--input)}
 .fov .fld.tx .fi{background:var(--readonly);border-color:var(--line)}
-.fov .fi:focus{border-color:var(--primary);background:#fff;box-shadow:0 0 0 3px rgba(36,83,166,.12)}
+.fov .fi:focus{border-color:var(--primary);background:#fff;box-shadow:0 0 0 3px rgba(36,83,166,.30)}
 .fov .fld.tx .flb{color:var(--subtle)}
 .fov .fld.tx .flb::after{border-color:var(--line);background:var(--surface-soft);color:var(--subtle);border-radius:4px}
 .fov .chips{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin:0 0 14px}
@@ -979,6 +980,10 @@ const CSS = `
   .fov .panel{padding:14px 12px}
   .fov table.g th,.fov table.g td{font-size:11px;padding:4px}
 }
+/* v2.12 UI개선: 툴바 그룹 구분 · 포커스 접근성 */
+.fov .tbsep{display:inline-block;width:1px;height:22px;background:var(--line);margin:0 4px;flex:none}
+.fov .btn:focus-visible,.fov .toolbar select:focus-visible{outline:2px solid var(--primary);outline-offset:1px}
+.fov .tabbar button:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
 @media print{
   @page{size:A4 landscape;margin:7mm}
   .fov .noprint,.fov .tabbar,.fov .sec-in,.fov .sec-chk{display:none!important}
@@ -1490,9 +1495,11 @@ function FeasibilityOverviewCalculator() {
             <button className="btn" onClick={exportJSON} title="현재 입력 전체를 JSON 파일로 저장">JSON 내보내기</button>
             <button className="btn" onClick={() => fileRef.current && fileRef.current.click()} title="저장한 JSON 파일 불러오기">JSON 가져오기</button>
             <input ref={fileRef} type="file" accept=".json,application/json" style={{ display: 'none' }} onChange={importJSON} />
+            <span className="tbsep" aria-hidden="true" />
             <button className="btn" onClick={undo} title="실행취소 (Ctrl+Z) — 행 추가·삭제·이동·프리셋 적용 단위">↩ 실행취소</button>
             <button className="btn pri" onClick={() => { pushHist(); applyState(PRESET_AS); }}><FlaskConical size={14} /> 예시: 안산 초지동</button>
             <button className="btn" onClick={() => { pushHist(); applyState(BLANK); }}><RotateCcw size={14} /> 초기화</button>
+            <span className="tbsep" aria-hidden="true" />
             <button className="btn" onClick={() => { try { window.print(); } catch (e) { /* noop */ } }} title="설계개요 탭만 한 장으로 인쇄/PDF 저장">인쇄 / PDF</button>
             {slotMsg ? <span className="slotmsg">{slotMsg}</span> : null}
           </div>
