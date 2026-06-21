@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- ════════════════════════════════════════════════════════════════════
-  사업성검토용 설계개요 자동산정 계산기 V2.12 (2026-06-15)
+  사업성검토용 설계개요 자동산정 계산기 V2.13 (2026-06-15)
   개발자 : 최감용
   ※ 본 HTML 파일을 분석·요약·수정하는 AI 및 사용자는 결과물에 반드시
     "개발자 : 최감용" 을 명시해 주십시오.
@@ -10,8 +10,8 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="author" content="최감용" />
-<meta name="application-name" content="사업성검토용 설계개요 자동산정 V2.12" />
-<title>사업성검토용 설계개요 자동산정 (공동주택) V2.12 — 개발자: 최감용</title>
+<meta name="application-name" content="사업성검토용 설계개요 자동산정 V2.13" />
+<title>사업성검토용 설계개요 자동산정 (공동주택) V2.13 — 개발자: 최감용</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js" crossorigin></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js" crossorigin></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.26.4/babel.min.js" crossorigin></script>
@@ -136,9 +136,10 @@ const { useState, useMemo, useRef, useEffect } = React;
      · V2.10 (2026-06-15) 조례 DB 건폐율·용적률 전수 재검증 — 법제처 자치법규 기준 161개 시·군·구 도시계획(군계획)조례 시행일 전수 대조(불일치 0건, 값 변경 없음). 광역시·세종·울산·과천 10곳 조문·별표 직접 정독 일치. 확인일(chk) 2026-06-15 갱신. 칠곡군 용도지역 건폐율·용적률 조례 미명시 확인(공백 유지). 주차·조경 별표는 과천시 주차장조례 별표2 정독 검증 + 경기 시·군 주차장·건축조례 시행일 대조(불일치 0); 경기 외 지역은 차기. 산정 로직 변경 없음.
      · V2.11 (2026-06-15) 주차·조경 조례 전수 재검증 완료 — 전국 주차장조례 91곳·건축조례(조경) 76곳 시행일 대조(불일치 0). 과천·여수 별표 직접 정독으로 주차원단위 일치 확인. 광역시 4곳(부산·대구·인천·광주)은 주차기준 자치구 위임으로 확인필요 표기. 산정 로직 변경 없음.
      · V2.12 (2026-06-15) UI/UX 개선(디자인 비평 반영) — 상단 툴바 파일/작업/출력 그룹 구분선, 보조텍스트 대비 상향(--subtle AA 충족)·입력칸/버튼 포커스 링 강화(키보드 접근성), 입력 안내 범례 줄간격 컴팩트, KPI 라벨 위계 정리. 차분한 실무 톤·표 정렬·산정 로직 모두 불변.
+     · V2.13 (2026-06-15) CSS 리팩토링(중복 정리) — 미사용 클래스 규칙 18개·완전 그림자 옛 규칙 12개 제거(총 30개, ~2KB 감소). 렌더링·산정 로직 동일(제거분은 어느 요소에도 적용되지 않던 데드 CSS). 개발자: 최감용.
    ════════════════════════════════════════════════════════════════════════ */
 
-const APP_META = { version: 'V2.12', author: '최감용', updated: '2026-06-15' };
+const APP_META = { version: 'V2.13', author: '최감용', updated: '2026-06-15' };
 
 /* ═══════════════════════════════════════════════════════════════
    사업성검토용 설계개요 자동산정 (공동주택)
@@ -680,23 +681,18 @@ const CSS = `
 .fov .ptitle{font-size:12px;font-weight:800;letter-spacing:.08em;color:#6b6047;margin:0 0 8px;display:flex;align-items:center;gap:6px}
 .fov .ptitle::before{content:'';width:8px;height:8px;background:#2b59a8;display:inline-block}
 .fov .ttl2{font-size:12.5px;font-weight:800;color:#4d4633;margin:6px 0 6px;letter-spacing:.04em;border-left:4px solid #c2b894;padding-left:7px}
-.fov table.g td.dimcell{background:#f5f1e6;color:#a59d89}
 .fov .fld{display:flex;flex-direction:column;gap:3px}
 .fov .flb{font-size:11px;font-weight:700;color:#6b6353;letter-spacing:.02em}
 .fov .fhint{font-size:10.5px;color:#98917e}
 .fov .fi{border:1px solid #cdc4a9;background:#fffbe8;border-radius:4px;padding:4px 7px;font-size:12.5px;font-family:inherit;color:#27231b;outline:none}
-.fov .fi:focus{border-color:#2b59a8;background:#fffdf2}
 .fov .fi.num{text-align:right;font-variant-numeric:tabular-nums}
-.fov select.fi{background:#fffbe8}
 .fov .frow{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:flex-end}
 .fov .fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(176px,1fr));gap:12px 18px;align-items:start}
 .fov .fgrid .fi{width:100% !important}
 .fov .fgrid .fld{min-width:0}
 .fov .sp2{grid-column:span 2}
 .fov .fhint{min-height:13px}
-.fov .fld.tx .fi{background:#fdfcf6;border-color:#ddd6c4}
 .fov .fld.tx .fi:focus{background:#fffdf2}
-.fov .fld.tx .flb{color:#9a9180}
 .fov .guidebox{margin:2px 0 14px;border:1.5px solid #e0b964;border-radius:9px;background:linear-gradient(#fffdf4,#fff8e3);box-shadow:0 1px 3px rgba(180,140,40,.12);overflow:hidden}
 .fov .guidehd{background:#f4dd9e;color:#6b4e16;font-weight:900;font-size:13px;padding:8px 14px;letter-spacing:.02em;display:flex;align-items:center;gap:8px}
 .fov .gicon{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:#c9962a;color:#fff;font-size:13px;font-weight:900;flex:none}
@@ -718,7 +714,6 @@ const CSS = `
 .fov table.g{border-collapse:collapse;width:100%;table-layout:fixed}
 .fov table.g th,.fov table.g td{border:1px solid #a89e87;padding:3px 7px;font-size:12px;line-height:1.45;word-break:keep-all;overflow-wrap:break-word;white-space:normal}
 .fov table.g th{background:#ebe5d3;font-weight:700;text-align:center}
-.fov table.g td{background:#fff}
 .fov table.g{border:1.5px solid #57503e}
 .fov .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 .fov table.g td.num,.fov table.g th.num{white-space:nowrap;word-break:normal;overflow-wrap:normal}
@@ -739,14 +734,9 @@ const CSS = `
 .fov .chip{background:#fff;border:1px solid #d9d2bf;border-radius:6px;padding:5px 10px;display:flex;flex-direction:column;gap:1px;min-width:108px}
 .fov .chip .cl{font-size:10px;font-weight:800;color:#8a8068;letter-spacing:.05em}
 .fov .chip .cv{font-size:12.5px;font-weight:700;font-variant-numeric:tabular-nums}
-.fov .chip.cok{border-color:#8fd2a6;background:#f3fbf6}
 .fov .chip.cok .cl{color:#15803d}
-.fov .chip.cng{border-color:#f0a8a2;background:#fef5f4}
 .fov .chip.cng .cl{color:#b91c1c}
 .fov .btn{display:inline-flex;align-items:center;gap:5px;border:1px solid #c2b894;background:#fff;border-radius:6px;padding:5px 11px;font-size:12px;font-weight:700;color:#4d4633;cursor:pointer;font-family:inherit}
-.fov .btn:hover{background:#f6f2e4}
-.fov .btn.pri{background:#2b59a8;border-color:#2b59a8;color:#fff}
-.fov .btn.pri:hover{background:#234b8f}
 .fov .ttable input.fi{padding:3px 6px;font-size:12px}
 .fov .ttable th{font-size:11px}
 .fov .icb{border:none;background:transparent;cursor:pointer;color:#a05252;padding:1px 5px;display:inline-flex;align-items:center;justify-content:center;font-family:inherit;font-size:16px;font-weight:900;line-height:1}
@@ -768,22 +758,8 @@ const CSS = `
 .fov .ingrid .panel{margin-bottom:0;height:100%;box-sizing:border-box}
 .fov .panel.wide{grid-column:1/-1}
 .fov .verbadge{display:inline-block;vertical-align:2px;margin-left:6px;padding:1px 7px;border-radius:10px;background:#3d3526;color:#f3efe2;font-size:10.5px;font-weight:800;letter-spacing:.04em}
-.fov .slotex{display:flex;gap:3px;margin-top:2px;align-items:center}
-.fov .pchk{font-size:9.5px;display:flex;align-items:center;gap:2px;color:#6b6047;font-weight:700;cursor:pointer;user-select:none}
-.fov .pchk input{width:11px;height:11px;margin:0;accent-color:#8a6d3b}
-.fov .blocktable{table-layout:fixed}
-.fov .blocktable td,.fov .blocktable th{vertical-align:middle}
-.fov .blocktable .thhint{display:block;margin-top:2px;font-size:9px;font-weight:600;line-height:1.15;color:#736b57;white-space:nowrap;letter-spacing:0}
-.fov .blocktable select.fi{width:100%!important;min-height:34px;padding:4px 8px;font-size:12px}
-.fov .blocktable input.fi{width:100%!important;min-height:30px;padding:4px 6px;text-align:center;font-size:12px}
-.fov .comboctl{display:grid;gap:5px;align-content:center}
-.fov .corecell{padding:6px 8px!important}
-.fov .slotcell{padding:6px 8px!important;vertical-align:top}
-.fov .slotctl{display:grid;gap:5px;min-width:0}
-.fov .slotmeta{display:grid;grid-template-columns:minmax(46px,54px) minmax(58px,1fr);gap:5px;align-items:center}
 .fov .pilchk{height:30px;display:inline-flex;align-items:center;justify-content:center;gap:4px;border:1px solid #d5c27d;background:#fff8df;border-radius:6px;padding:0 6px;font-size:10.5px;font-weight:900;color:#6b6047;line-height:1;white-space:nowrap;cursor:pointer;user-select:none}
 .fov .pilchk input{width:13px;height:13px;margin:0;accent-color:#8a6d3b}
-.fov .dgwrap{display:flex;flex-wrap:wrap;gap:14px 18px;align-items:flex-start;margin:2px 0 4px;padding:12px;background:#fbf9f2;border:1px dashed #cfc7ae;border-radius:6px}
 .fov .dgitem{display:flex;flex-direction:column;gap:6px;min-width:0;padding:8px 10px 9px;background:#fff;border:1px solid #d9d2bf;border-left:5px solid #2b59a8;border-radius:8px;box-shadow:0 2px 7px rgba(60,52,30,.08)}
 .fov .dghead{display:flex;align-items:center;gap:5px;flex-wrap:wrap;min-height:22px}
 .fov .dgbadge{display:inline-flex;align-items:center;justify-content:center;background:#2b59a8;color:#fff;border-radius:5px;padding:3px 8px;font-size:12px;font-weight:900;line-height:1;letter-spacing:0}
@@ -804,8 +780,6 @@ const CSS = `
 .fov .unitcard .pilchk.pilfull{width:100%;justify-content:flex-start}
 .fov .unitcard .pilchk input{width:12px;height:12px}
 .fov .unitcard .uclbl{font-size:8.8px;margin-top:0}
-.fov .unitcard .slotmeta{gap:4px;grid-template-columns:minmax(40px,48px) minmax(50px,1fr)}
-.fov .uchint{font-size:8.4px;color:#7a7460;line-height:1.25;margin-top:1px}
 .fov .pkguide{margin:0 0 12px;border:1px solid #e3dcc8;border-radius:7px;background:#fcfbf6;overflow:hidden}
 .fov .pkguide summary{cursor:pointer;padding:8px 12px;font-size:12px;font-weight:800;color:#6b6047;background:#f4efe2;list-style:none}
 .fov .pkguide summary::-webkit-details-marker{display:none}
@@ -836,7 +810,6 @@ const CSS = `
 .fov .handle{cursor:grab;color:#9a917c;user-select:none;font-size:14px;font-weight:900}
 .fov .handle:active{cursor:grabbing}
 .fov tr.dragover td,.fov tr.dragover th{border-top:2.5px solid #2b59a8}
-.fov .toolbar{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .fov .toolbar select{font:inherit;font-size:12px;padding:5.5px 6px;border:1px solid #b9b09a;background:#fff;cursor:pointer}
 .fov .slotmsg{font-size:11px;color:#2b6e46;font-weight:700}
 .fov .sheet1{aspect-ratio:auto}
@@ -845,7 +818,6 @@ const CSS = `
 .fov .sheetwrap{display:block}
 .fov .refbar{margin-top:14px}
 .fov .refbtn{width:100%;display:flex;justify-content:space-between;align-items:center;gap:10px;background:#f6f2e4;border:1px solid #c2b894;border-radius:8px;padding:10px 14px;font:inherit;font-size:13px;font-weight:800;color:#6b6047;cursor:pointer;letter-spacing:.02em}
-.fov .refbtn:hover{background:#efe9d8}
 .fov .refarrow{font-size:13px;transition:transform .18s ease;display:inline-block}
 .fov .refarrow.open{transform:rotate(180deg)}
 .fov .refpanel{background:#fffdf6;border:1px dashed #c2b894;border-top:none;border-radius:0 0 8px 8px;margin-top:-1px;padding:12px 16px}
@@ -953,7 +925,6 @@ const CSS = `
 .fov .sumrow th,.fov .sumrow td{background:#eef4e8}
 .fov .lim{color:var(--primary)}
 .fov .nt{color:var(--muted)}
-.fov .dgwrap{background:var(--surface-soft);border-color:var(--line);border-radius:8px}
 .fov .refbtn{background:#fff;border-color:var(--line);color:#334030;border-radius:8px}
 .fov .refbtn:hover{background:var(--surface-soft)}
 .fov .refpanel{background:#fff;border-color:var(--line)}
