@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- ════════════════════════════════════════════════════════════════════
-  사업성검토용 설계개요 자동산정 계산기 V2.14 (2026-06-15)
+  사업성검토용 설계개요 자동산정 계산기 V2.15 (2026-06-15)
   개발자 : 최감용
   ※ 본 HTML 파일을 분석·요약·수정하는 AI 및 사용자는 결과물에 반드시
     "개발자 : 최감용" 을 명시해 주십시오.
@@ -10,8 +10,8 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="author" content="최감용" />
-<meta name="application-name" content="사업성검토용 설계개요 자동산정 V2.14" />
-<title>사업성검토용 설계개요 자동산정 (공동주택) V2.14 — 개발자: 최감용</title>
+<meta name="application-name" content="사업성검토용 설계개요 자동산정 V2.15" />
+<title>사업성검토용 설계개요 자동산정 (공동주택) V2.15 — 개발자: 최감용</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js" crossorigin></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js" crossorigin></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.26.4/babel.min.js" crossorigin></script>
@@ -138,9 +138,10 @@ const { useState, useMemo, useRef, useEffect } = React;
      · V2.12 (2026-06-15) UI/UX 개선(디자인 비평 반영) — 상단 툴바 파일/작업/출력 그룹 구분선, 보조텍스트 대비 상향(--subtle AA 충족)·입력칸/버튼 포커스 링 강화(키보드 접근성), 입력 안내 범례 줄간격 컴팩트, KPI 라벨 위계 정리. 차분한 실무 톤·표 정렬·산정 로직 모두 불변.
      · V2.13 (2026-06-15) CSS 리팩토링(중복 정리) — 미사용 클래스 규칙 18개·완전 그림자 옛 규칙 12개 제거(총 30개, ~2KB 감소). 렌더링·산정 로직 동일(제거분은 어느 요소에도 적용되지 않던 데드 CSS). 개발자: 최감용.
      · V2.14 (2026-06-15) 법규 커버리지 보강(법규검토 스킬 검증 반영) — ① 용도지역에 상업지역 4종(중심·일반·근린·유통, 건폐율 영 §84·용적률 영 §85; 상업 공동주택·주거복합 용적률은 조례 별표 확인 단서) 추가 ② 건축물 용도에 기숙사·오피스텔 추가(별표1 제2호라목/제14호, 판정은 별표1 분류 기준이 달라 제외 처리) ③ 검산에 사업계획승인 §27④ 주상복합 자동판정 강화 + 공개공지(건축법 §43·영 §27의2) 행 신설. 기존 9개 용도지역 값·산정 로직 불변. 개발자: 최감용.
+     · V2.15 (2026-06-15) 법규검토 콘솔(housing-code-review v5.29) 교차참고 반영 — ① 건축물 용도에 '주상복합' 추가(상업지역과 짝, 자동 유형판정 제외) ② 검산에 전기차 전용주차구역 행 신설(친환경차법 영 §18의5·6: 신축 총주차 50대↑ → 5% 이상, 대상 100세대↑ 아파트·기숙사, 시·도 조례) ③ 헤더에 법령기준일·처분시법주의(접수시점 법령) 안내 추가. 산정 로직·기존 값 불변. 개발자: 최감용.
    ════════════════════════════════════════════════════════════════════════ */
 
-const APP_META = { version: 'V2.14', author: '최감용', updated: '2026-06-15' };
+const APP_META = { version: 'V2.15', author: '최감용', updated: '2026-06-15' };
 
 /* ═══════════════════════════════════════════════════════════════
    사업성검토용 설계개요 자동산정 (공동주택)
@@ -223,7 +224,7 @@ const FACILITIES = [
 
 const SIDO = ['서울특별시', '부산광역시', '대구광역시', '인천광역시', '광주광역시', '대전광역시', '울산광역시', '세종특별자치시', '경기도', '강원특별자치도', '충청북도', '충청남도', '전북특별자치도', '전라남도', '경상북도', '경상남도', '제주특별자치도'];
 
-const USE_TYPES = ['아파트', '연립주택', '다세대주택', '기숙사', '오피스텔'];
+const USE_TYPES = ['아파트', '연립주택', '다세대주택', '기숙사', '오피스텔', '주상복합'];
 
 /* ── helpers ── */
 const isBlank = (v) => v === undefined || v === null || String(v).trim() === '';
@@ -1412,7 +1413,7 @@ function FeasibilityOverviewCalculator() {
     } else if (up >= 5 && T.length > 0) {
       judgedType = '아파트';
     }
-    const typeMatch = (bld.useType === '기숙사' || bld.useType === '오피스텔') ? null : (judgedType ? judgedType === bld.useType : null);
+    const typeMatch = (bld.useType === '기숙사' || bld.useType === '오피스텔' || bld.useType === '주상복합') ? null : (judgedType ? judgedType === bld.useType : null);
 
     const jPark = N > 0 ? parkPlanned >= parkLegal : null;
     const jMgmt = N >= 50 ? mgmtPlan >= mgmtLegal - 1e-9 : null;
@@ -1462,7 +1463,7 @@ function FeasibilityOverviewCalculator() {
             <div className="eyebrow">공동주택 규모검토</div>
             <h1 className="headtitle">사업성검토용 설계개요 자동산정 <span className="verbadge">{APP_META.version}</span></h1>
             <div className="headmeta">
-              공동주택 규모검토 · 법정기준: 주택건설기준 등에 관한 규정(시행 2026.5.6.) §25 · §27 · §28 · §55의2 — 법제처 국가법령정보 원문 조회 기준 · <b>개발자 : {APP_META.author}</b>
+              공동주택 규모검토 · 법정기준: 주택건설기준 등에 관한 규정(시행 2026.5.6.) §25 · §27 · §28 · §55의2 — 법제처 국가법령정보 원문 조회 기준 · 법령기준일 2026-06-15 · 처분시법주의(허가·사업승인은 접수시점 법령 적용) · <b>개발자 : {APP_META.author}</b>
             </div>
           </div>
           <div className="toolbar">
@@ -1992,6 +1993,7 @@ function FeasibilityOverviewCalculator() {
               <tr><th>용적률</th><td className="ctr lim">{D.farLevel}{D.zoneBiz ? ' · 상업 공동주택·주거복합 용적률은 조례 별표 확인필요' : ''}</td><td className="num">{fmt(D.far, 2)}%</td><td className="ctr"><Badge ok={D.jFar} no="초과" /></td></tr>
               <tr><th>주차대수</th><td className="ctr lim">{D.pkBandOnly ? `조례 비율식 ${fmt(D.parkBandBased, 2)}대 단독(면적·세대 미반영)` : `§27①1 면적 ${fmt(D.parkAreaBased, 2)}대 / 세대 ${fmt(D.parkUnitMin, 1)}대${D.pkMode === 'band' ? ' / 조례 비율식 ' + fmt(D.parkBandBased, 2) + '대' : ''}`} → {D.parkLegal}대{D.ordU || D.ordO || D.pkMode === 'band' ? ' (조례 반영)' : ''}</td><td className="num">{D.parkPlanned}대</td><td className="ctr"><Badge ok={D.jPark} no="부족" /></td></tr>
               <tr><th>장애인전용</th><td className="ctr lim">설치대수의 {fmt(D.disabledPct, 0)}% → {D.dLegal}대 (조례 확인필요)</td><td className="num">{D.dPlan}대</td><td className="ctr"><Badge ok={D.dLegal === 0 ? null : D.dPlan >= D.dLegal} no="부족" /></td></tr>
+              <tr><th>전기차 전용주차</th><td className="ctr lim">{(D.parkPlanned > 0 ? D.parkPlanned : D.parkLegal) >= 50 ? `신축 총주차 50대 이상 — 총주차의 5% 이상 충전·전용구역 (친환경차법 영 §18의6①, 시·도 조례) · 대상: 100세대↑ 아파트·기숙사` : '총주차 50대 미만 — 의무 없음 (친환경차법 영 §18의5)'}</td><td className="num">{(D.parkPlanned > 0 ? D.parkPlanned : D.parkLegal) >= 50 ? Math.round((D.parkPlanned > 0 ? D.parkPlanned : D.parkLegal) * 0.05) + '대' : '—'}</td><td className="ctr"><span className="nt">{(D.parkPlanned > 0 ? D.parkPlanned : D.parkLegal) >= 50 ? '조례 비율·대상 확인필요' : '—'}</span></td></tr>
               <tr><th>조경면적</th><td className="ctr lim">대지 × {fmt(D.landRatio, 0)}% = {fmt(D.landLegal, 2)}㎡ (조례 비율)</td><td className="num">{fmt(D.landPlan, 1)}</td><td className="ctr"><Badge ok={D.jLand} no="부족" /></td></tr>
               <tr><th>관리사무소 등</th><td className="ctr lim">{D.N >= 50 ? `§28① ${fmt(D.mgmtLegal, 2)}㎡ 이상 (경비원 등 휴게시설 합계)` : '50세대 미만 — 의무 없음'}</td><td className="num">{fmt(D.mgmtPlan, 1)}</td><td className="ctr"><Badge ok={D.jMgmt} no="부족" /></td></tr>
               <tr><th>주민공동 총량</th><td className="ctr lim">{D.N >= 100 || D.commOrd ? `${fmt(D.commLegal, 1)}㎡ 이상 ${D.commOrd ? '(조례)' : '(§55의2①)'}` : '100세대 미만 — 의무 없음'}</td><td className="num">{fmt(D.commPlanTotal, 1)}</td><td className="ctr"><Badge ok={D.jComm} no="부족" /></td></tr>
