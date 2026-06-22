@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- ════════════════════════════════════════════════════════════════════
-  사업성검토용 설계개요 자동산정 계산기 V2.13 (2026-06-15)
+  사업성검토용 설계개요 자동산정 계산기 V2.14 (2026-06-15)
   개발자 : 최감용
   ※ 본 HTML 파일을 분석·요약·수정하는 AI 및 사용자는 결과물에 반드시
     "개발자 : 최감용" 을 명시해 주십시오.
@@ -10,8 +10,8 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="author" content="최감용" />
-<meta name="application-name" content="사업성검토용 설계개요 자동산정 V2.13" />
-<title>사업성검토용 설계개요 자동산정 (공동주택) V2.13 — 개발자: 최감용</title>
+<meta name="application-name" content="사업성검토용 설계개요 자동산정 V2.14" />
+<title>사업성검토용 설계개요 자동산정 (공동주택) V2.14 — 개발자: 최감용</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js" crossorigin></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js" crossorigin></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.26.4/babel.min.js" crossorigin></script>
@@ -137,9 +137,10 @@ const { useState, useMemo, useRef, useEffect } = React;
      · V2.11 (2026-06-15) 주차·조경 조례 전수 재검증 완료 — 전국 주차장조례 91곳·건축조례(조경) 76곳 시행일 대조(불일치 0). 과천·여수 별표 직접 정독으로 주차원단위 일치 확인. 광역시 4곳(부산·대구·인천·광주)은 주차기준 자치구 위임으로 확인필요 표기. 산정 로직 변경 없음.
      · V2.12 (2026-06-15) UI/UX 개선(디자인 비평 반영) — 상단 툴바 파일/작업/출력 그룹 구분선, 보조텍스트 대비 상향(--subtle AA 충족)·입력칸/버튼 포커스 링 강화(키보드 접근성), 입력 안내 범례 줄간격 컴팩트, KPI 라벨 위계 정리. 차분한 실무 톤·표 정렬·산정 로직 모두 불변.
      · V2.13 (2026-06-15) CSS 리팩토링(중복 정리) — 미사용 클래스 규칙 18개·완전 그림자 옛 규칙 12개 제거(총 30개, ~2KB 감소). 렌더링·산정 로직 동일(제거분은 어느 요소에도 적용되지 않던 데드 CSS). 개발자: 최감용.
+     · V2.14 (2026-06-15) 법규 커버리지 보강(법규검토 스킬 검증 반영) — ① 용도지역에 상업지역 4종(중심·일반·근린·유통, 건폐율 영 §84·용적률 영 §85; 상업 공동주택·주거복합 용적률은 조례 별표 확인 단서) 추가 ② 건축물 용도에 기숙사·오피스텔 추가(별표1 제2호라목/제14호, 판정은 별표1 분류 기준이 달라 제외 처리) ③ 검산에 사업계획승인 §27④ 주상복합 자동판정 강화 + 공개공지(건축법 §43·영 §27의2) 행 신설. 기존 9개 용도지역 값·산정 로직 불변. 개발자: 최감용.
    ════════════════════════════════════════════════════════════════════════ */
 
-const APP_META = { version: 'V2.13', author: '최감용', updated: '2026-06-15' };
+const APP_META = { version: 'V2.14', author: '최감용', updated: '2026-06-15' };
 
 /* ═══════════════════════════════════════════════════════════════
    사업성검토용 설계개요 자동산정 (공동주택)
@@ -170,6 +171,10 @@ const ZONES = [
   { id: '2일', name: '제2종일반주거지역', bcr: 60, far: [100, 250] },
   { id: '3일', name: '제3종일반주거지역', bcr: 50, far: [100, 300] },
   { id: '준주', name: '준주거지역', bcr: 70, far: [200, 500] },
+  { id: '중상', name: '중심상업지역', bcr: 90, far: [200, 1500], biz: true },
+  { id: '일상', name: '일반상업지역', bcr: 80, far: [200, 1300], biz: true },
+  { id: '근상', name: '근린상업지역', bcr: 70, far: [200, 900], biz: true },
+  { id: '유상', name: '유통상업지역', bcr: 80, far: [200, 1100], biz: true },
   { id: '준공', name: '준공업지역', bcr: 70, far: [150, 400] },
   { id: '계관', name: '계획관리지역', bcr: 40, far: [50, 100] },
   { id: '자녹', name: '자연녹지지역', bcr: 20, far: [50, 100] },
@@ -218,7 +223,7 @@ const FACILITIES = [
 
 const SIDO = ['서울특별시', '부산광역시', '대구광역시', '인천광역시', '광주광역시', '대전광역시', '울산광역시', '세종특별자치시', '경기도', '강원특별자치도', '충청북도', '충청남도', '전북특별자치도', '전라남도', '경상북도', '경상남도', '제주특별자치도'];
 
-const USE_TYPES = ['아파트', '연립주택', '다세대주택'];
+const USE_TYPES = ['아파트', '연립주택', '다세대주택', '기숙사', '오피스텔'];
 
 /* ── helpers ── */
 const isBlank = (v) => v === undefined || v === null || String(v).trim() === '';
@@ -1357,6 +1362,12 @@ function FeasibilityOverviewCalculator() {
     const bcrLimit = toNum(zone.bcr, 0);
     const farBase = toNum(zone.farBase, 0), farAllow = toNum(zone.farAllow, 0), farMax = toNum(zone.farMax, 0);
     const farCap = farMax > 0 ? farMax : farAllow > 0 ? farAllow : farBase;
+    /* ── 용도지역/인허가 보조 판정 (V2.14) ── */
+    const zoneBiz = ['중상', '일상', '근상', '유상'].includes(zone.zoneId); /* 상업지역 */
+    const zoneOpenElig = ['2일', '3일', '준주', '중상', '일상', '근상', '유상', '준공'].includes(zone.zoneId); /* 공개공지 용도지역(건축법 §43①·일반주거·준주거·상업·준공업) */
+    const housingRatio = gfaAbove > 0 ? (totalSUP / gfaAbove) * 100 : 0; /* 주택 연면적 비율 근사 = 공급합/지상연면적 */
+    const mixedExempt = (zone.zoneId === '준주' || (zoneBiz && zone.zoneId !== '유상')) && N >= 30 && N < 300 && retail > 0; /* 주택법 영 §27④1 주상복합 */
+    const openSpaceArea = siteArea * 0.10; /* 공개공지 상한 = 대지의 10% (건축법 영 §27의2②) */
     let farLevel = '−';
     if (siteArea > 0 && farCap > 0) {
       if (farBase > 0 && far <= farBase + 1e-9) farLevel = '기준 이내';
@@ -1401,7 +1412,7 @@ function FeasibilityOverviewCalculator() {
     } else if (up >= 5 && T.length > 0) {
       judgedType = '아파트';
     }
-    const typeMatch = judgedType ? judgedType === bld.useType : null;
+    const typeMatch = (bld.useType === '기숙사' || bld.useType === '오피스텔') ? null : (judgedType ? judgedType === bld.useType : null);
 
     const jPark = N > 0 ? parkPlanned >= parkLegal : null;
     const jMgmt = N >= 50 ? mgmtPlan >= mgmtLegal - 1e-9 : null;
@@ -1423,6 +1434,7 @@ function FeasibilityOverviewCalculator() {
       landRatio, landLegal, landPlan, jLand, roadReq,
       budae, gitaTotal, rows, sumWall, sumStair, sumContract,
       judgedType, typeMatch, jPark, jMgmt, jComm, effSupply, effContract,
+      zoneBiz, zoneOpenElig, housingRatio, mixedExempt, openSpaceArea,
     };
   }, [site, zone, bld, types, cores, blocks, asm]);
 
@@ -1587,7 +1599,7 @@ function FeasibilityOverviewCalculator() {
 <div className="panel">
               <p className="ptitle"><span className="sectno">입력 03</span><span className="sectbody"><span className="sectlabel">규모 · 형식</span></span></p>
               <div className="fgrid">
-                <Fld label="공동주택 용도">
+                <Fld label="주택/오피스텔 용도">
                   <FSel v={bld.useType} on={uBld('useType')} w="100%" opts={USE_TYPES.map((u) => ({ value: u, label: u }))} />
                 </Fld>
                 <Fld label="지상 층수" hint="최고층 기준"><FIn v={bld.up} on={uBld('up')} w="100%" /></Fld>
@@ -1977,7 +1989,7 @@ function FeasibilityOverviewCalculator() {
             <tbody>
               <tr><th>항 목</th><th>법정 기준</th><th>계 획</th><th>판 정</th></tr>
               <tr><th>건폐율</th><td className="ctr lim">{D.bcrLimit > 0 ? `${D.bcrLimit}% 이하 (조례·지구단위계획 우선)` : '한도 미입력'}</td><td className="num">{fmt(D.bcr, 2)}%</td><td className="ctr"><Badge ok={D.jBcr} no="초과" /></td></tr>
-              <tr><th>용적률</th><td className="ctr lim">{D.farLevel}</td><td className="num">{fmt(D.far, 2)}%</td><td className="ctr"><Badge ok={D.jFar} no="초과" /></td></tr>
+              <tr><th>용적률</th><td className="ctr lim">{D.farLevel}{D.zoneBiz ? ' · 상업 공동주택·주거복합 용적률은 조례 별표 확인필요' : ''}</td><td className="num">{fmt(D.far, 2)}%</td><td className="ctr"><Badge ok={D.jFar} no="초과" /></td></tr>
               <tr><th>주차대수</th><td className="ctr lim">{D.pkBandOnly ? `조례 비율식 ${fmt(D.parkBandBased, 2)}대 단독(면적·세대 미반영)` : `§27①1 면적 ${fmt(D.parkAreaBased, 2)}대 / 세대 ${fmt(D.parkUnitMin, 1)}대${D.pkMode === 'band' ? ' / 조례 비율식 ' + fmt(D.parkBandBased, 2) + '대' : ''}`} → {D.parkLegal}대{D.ordU || D.ordO || D.pkMode === 'band' ? ' (조례 반영)' : ''}</td><td className="num">{D.parkPlanned}대</td><td className="ctr"><Badge ok={D.jPark} no="부족" /></td></tr>
               <tr><th>장애인전용</th><td className="ctr lim">설치대수의 {fmt(D.disabledPct, 0)}% → {D.dLegal}대 (조례 확인필요)</td><td className="num">{D.dPlan}대</td><td className="ctr"><Badge ok={D.dLegal === 0 ? null : D.dPlan >= D.dLegal} no="부족" /></td></tr>
               <tr><th>조경면적</th><td className="ctr lim">대지 × {fmt(D.landRatio, 0)}% = {fmt(D.landLegal, 2)}㎡ (조례 비율)</td><td className="num">{fmt(D.landPlan, 1)}</td><td className="ctr"><Badge ok={D.jLand} no="부족" /></td></tr>
@@ -1987,7 +1999,8 @@ function FeasibilityOverviewCalculator() {
               <tr><th>진입도로</th><td className="ctr lim">폭 {D.roadReq}m 이상 (§25①의 표 — 원문 확인필요)</td><td className="ctr">{proj.road || '—'}</td><td className="ctr"><span className="nt">수동 확인</span></td></tr>
               <tr><th>세대수 대조</th><td className="ctr lim">동구성 산출 {D.unitsCheck.reduce((s, c) => s + c.derived, 0)}세대 = 타입표 입력</td><td className="num">{D.N}세대</td><td className="ctr"><Badge ok={D.unitsMatch} yes="일치" no="불일치" /></td></tr>
               <tr><th>주택유형</th><td className="ctr lim">판정 {D.judgedType || '— (동 구성 입력 필요)'}</td><td className="ctr">{bld.useType} 선택</td><td className="ctr"><Badge ok={D.typeMatch} yes="일치" no="불일치" /></td></tr>
-              <tr><th>인허가 구분</th><td className="ctr lim">{D.N >= 30 ? '공동주택 30세대 이상 — 사업계획승인 대상 (주택법 §15①·영 §27①2)' : D.N > 0 ? '30세대 미만 — 건축허가 대상 (주택법 영 §27①2)' : '세대수 입력 필요'}</td><td className="ctr">{D.N > 0 ? (D.N >= 30 ? '사업계획승인' : '건축허가') : '—'}</td><td className="ctr"><span className="nt">{D.N >= 30 ? '단지형 연립·다세대 50세대(영 §27①2가)·준주거/상업 주상복합(영 §27④1) 예외 확인필요' : '확인필요'}</span></td></tr>
+              <tr><th>인허가 구분</th><td className="ctr lim">{D.N >= 30 ? (D.mixedExempt ? `준주거·상업(유통 제외)+300세대 미만 주상복합 — 주택 연면적 90% 미만이면 건축허가 (영 §27④1) · 현재 주택비율 ${fmt(D.housingRatio, 0)}%` : '공동주택 30세대 이상 — 사업계획승인 대상 (주택법 §15①·영 §27①2)') : D.N > 0 ? '30세대 미만 — 건축허가 대상 (주택법 영 §27①2)' : '세대수 입력 필요'}</td><td className="ctr">{D.N > 0 ? (D.mixedExempt && D.housingRatio < 90 ? '건축허가(주상복합)' : D.N >= 30 ? '사업계획승인' : '건축허가') : '—'}</td><td className="ctr"><span className="nt">{D.N >= 30 ? (D.mixedExempt ? '주택비율 90% 미만 시 건축허가(영 §27④1) — 도면값 확인' : '단지형 연립·다세대는 50세대(영 §27①2가) 확인필요') : '확인필요'}</span></td></tr>
+              <tr><th>공개공지</th><td className="ctr lim">{D.zoneOpenElig ? `업무·판매·숙박·문화집회 등 바닥면적 5천㎡ 이상 시 설치 (건축법 §43·영 §27의2①) — 면적 대지의 10% 이하 = ${fmt(D.openSpaceArea, 1)}㎡ (조례)` : '미해당 — 공개공지 대상 용도지역 아님(일반주거·준주거·상업·준공업)'}</td><td className="ctr">{D.zoneOpenElig ? `≤ ${fmt(D.openSpaceArea, 1)}㎡` : '—'}</td><td className="ctr"><span className="nt">{D.zoneOpenElig ? '대상용도 5천㎡↑ 여부 확인필요(근생 제외)' : '미해당'}</span></td></tr>
               <tr><th>승강기</th><td className="ctr lim">{D.up >= 6 ? `6층 이상 — 6인승 이상 승용승강기 설치 (주택건설기준 §15①)${D.up >= 10 ? ' · 10층 이상: 비상용 구조 + 화물용 승강기 (§15②③)' : ''}` : D.up > 0 ? '6층 미만 — 승용승강기 의무 없음 (§15①)' : '층수 입력 필요'}</td><td className="ctr">{D.up > 0 ? D.up + '층' : '—'}</td><td className="ctr"><span className="nt">{D.up >= 6 ? '대수 산정 — 규칙 기준 확인필요' : '—'}</span></td></tr>
               <tr><th>교통영향평가</th><td className="ctr lim">도시교통정비지역 내 공동주택 — 「도시교통정비 촉진법」 영 [별표1] 대상(통용 100세대 이상·50~99 간이검토, 비도시 200세대) — 별표 원문·지자체 기준 확인필요</td><td className="ctr">{D.N}세대</td><td className="ctr"><span className="nt">수동 확인</span></td></tr>
               <tr><th>친환경주택</th><td className="ctr lim">{D.N >= 30 ? '사업계획승인 대상 — 에너지절약형 친환경주택 건설 + 에너지절약계획 제출 (주택건설기준 §64①②)' : '사업계획승인 대상 아님 — 미해당'}</td><td className="ctr">{D.N >= 30 ? '대상' : '—'}</td><td className="ctr"><span className="nt">{D.N >= 30 ? '세부기준 고시 확인필요' : '—'}</span></td></tr>
